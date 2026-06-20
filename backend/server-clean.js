@@ -45,13 +45,16 @@ const corsOptions = {
   preflightContinue: false
 };
 
-// Manual CORS header middleware - run BEFORE cors package
+// Manual CORS header middleware - ALWAYS set headers regardless of origin
 app.use((req, res, next) => {
   const origin = req.get('origin');
-  if (corsOptions.origin.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-  }
+  console.log('[CORS] Origin header:', origin);
+  
+  // ALWAYS set the header for testing
+  res.setHeader('Access-Control-Allow-Origin', 'https://kylo-support.web.app');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  
+  console.log('[CORS] Headers set in middleware');
   next();
 });
 
