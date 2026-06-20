@@ -45,14 +45,16 @@ const corsOptions = {
   preflightContinue: false
 };
 
-// CORS middleware - manually set all headers with lowercase names
+// CORS middleware - test which headers pass through Railway
 app.use((req, res, next) => {
   const origin = req.get('origin');
   const allowedOrigins = ['https://kylo-support.web.app', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000'];
   
   if (allowedOrigins.includes(origin)) {
-    // Use lowercase header names to match Railway's normalization
+    // Standard CORS header
     res.setHeader('access-control-allow-origin', origin);
+    // Test custom header
+    res.setHeader('x-allow-origin', origin);
   }
   
   res.setHeader('access-control-allow-credentials', 'true');
