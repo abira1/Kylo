@@ -45,16 +45,13 @@ const corsOptions = {
   preflightContinue: false
 };
 
-// CORS middleware - manually set all headers since Railway filters Access-Control-Allow-Origin
+// CORS middleware - manually set all headers
 app.use((req, res, next) => {
   const origin = req.get('origin');
   const allowedOrigins = ['https://kylo-support.web.app', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000'];
   
   if (allowedOrigins.includes(origin)) {
-    // Try multiple variations of the header name
     res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('access-control-allow-origin', origin);
-    res.set('Access-Control-Allow-Origin', origin);
   }
   
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -64,17 +61,11 @@ app.use((req, res, next) => {
   
   // Handle OPTIONS requests
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-  } else {
-    next();
+    return res.status(200).end();
   }
+  
+  next();
 });
-
-// Apply CORS middleware FIRST before all routes
-app.use(cors(corsOptions));
-
-// Handle preflight explicitly
-app.options('*', cors(corsOptions));
 
 app.use(express.json({ limit: '10mb' }));
 
