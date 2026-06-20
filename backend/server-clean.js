@@ -66,7 +66,8 @@ app.use((req, res, next) => {
   // Handle OPTIONS requests
   if (req.method === 'OPTIONS') {
     console.log('[CORS] Returning 200 for OPTIONS');
-    return res.status(200).send('');
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).json({ok: true});
   }
   
   next();
