@@ -15,16 +15,23 @@ export default async function handler(req, res) {
   try {
     const backendUrl = `${RAILWAY_BACKEND}/api/chat`;
 
-    // Prepare request body - handle both parsed objects and raw bodies
+    // Prepare request body for forwarding
     let requestBody = undefined;
     if (req.method !== 'GET' && req.method !== 'HEAD') {
-      if (typeof req.body === 'string') {
-        requestBody = req.body;
-      } else if (req.body) {
-        requestBody = JSON.stringify(req.body);
+      // Handle different body types
+      if (req.body) {
+        if (typeof req.body === 'string') {
+          requestBody = req.body;
+        } else if (Buffer.isBuffer(req.body)) {
+          requestBody = req.body.toString();
+        } else {
+          // Already parsed object
+          requestBody = JSON.stringify(req.body);
+        }
       }
     }
 
+    // Forward request to backend
     const response = await fetch(backendUrl, {
       method: req.method,
       headers: {
@@ -33,26 +40,26 @@ export default async function handler(req, res) {
       body: requestBody,
     });
 
-    const data = await response.text();
-    let parsedData = data;
+    // Parse response
+    const responseText = await response.text();
     
+    // Try to parse as JSON, fall back to text
+    let responseData = responseText;
     try {
-      parsedData = JSON.parse(data);
+      responseData = JSON.parse(responseText);
     } catch (e) {
-      // Keep as text if not JSON
+      // Keep as text if not valid JSON
     }
 
-    // Forward response status and data
+    // Return response with proper headers
     res.status(response.status);
-    
-    // Forward content type if available
-    if (response.headers.get('content-type')) {
-      res.setHeader('Content-Type', response.headers.get('content-type'));
-    }
-    
-    return res.send(parsedData);
+    res.setHeader('Content-Type', 'application/json');
+    return res.send(responseData);
   } catch (error) {
     console.error('Proxy error:', error);
-    return res.status(500).json({ error: error.message, message: 'Failed to proxy request to backend' });
+    return res.status(500).json({ 
+      error: error.message,
+      message: 'Failed to proxy request to backend'
+    });
   }
 }
