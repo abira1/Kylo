@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const Anthropic = require('@anthropic-ai/sdk');
 
 // Import services and routes
@@ -32,26 +33,23 @@ const allowedOrigins = [
   'https://kylo-support.web.app'
 ];
 
-// DEBUG CORS - Add custom header to test middleware
-app.use((req, res, next) => {
-  // Test header to verify middleware runs
-  res.setHeader('X-CORS-Test', 'middleware-running');
-  
-  // ALWAYS set these headers - no conditions
-  res.setHeader('Access-Control-Allow-Origin', 'https://kylo-support.web.app');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,HEAD,PATCH');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept');
-  res.setHeader('Access-Control-Max-Age', '86400');
-  res.setHeader('Vary', 'Origin');
-  
-  // Preflight request handler
-  if (req.method === 'OPTIONS') {
-    return res.status(200).send();
-  }
-  
-  next();
-});
+// CORS Configuration - Using cors package with explicit configuration
+const corsOptions = {
+  origin: ['https://kylo-support.web.app', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Content-Type', 'X-Total-Count'],
+  optionsSuccessStatus: 200,
+  maxAge: 86400,
+  preflightContinue: false
+};
+
+// Apply CORS middleware FIRST before all routes
+app.use(cors(corsOptions));
+
+// Handle preflight explicitly
+app.options('*', cors(corsOptions));
 
 app.use(express.json({ limit: '10mb' }));
 
