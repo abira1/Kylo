@@ -36,7 +36,7 @@ export interface QAItem {
 /**
  * Determine API base URL based on environment
  * - Development: use localhost:5001
- * - Production: use Railway backend directly (handles CORS differently for API calls vs preflight)
+ * - Production: use Vercel proxy to bypass Railway CORS issues
  */
 function getApiBaseUrl(): string {
   const isLocalhost = typeof window !== 'undefined' && (
@@ -49,8 +49,12 @@ function getApiBaseUrl(): string {
     return 'http://localhost:5001';
   }
   
-  // Production: use Railway backend
-  return 'https://kylo-production.up.railway.app';
+  // PRODUCTION: Use Vercel proxy endpoint
+  // This proxies requests to Railway backend while handling CORS properly
+  // UPDATE: Replace with your actual Vercel URL after deployment
+  const vercelProxyUrl = import.meta.env.VITE_VERCEL_PROXY_URL || 'https://kylo-cors-proxy.vercel.app';
+  
+  return vercelProxyUrl;
 }
 
 const API_BASE_URL = getApiBaseUrl();
