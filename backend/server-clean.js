@@ -24,7 +24,8 @@ console.log('[STARTUP] Client created successfully');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors({
+// CORS Configuration
+const corsOptions = {
   origin: [
     // Development
     'http://localhost:5173', 
@@ -34,8 +35,18 @@ app.use(cors({
     // Production
     'https://kylo-support.web.app'
   ],
-  credentials: true
-}));
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200,
+  maxAge: 86400
+};
+
+app.use(cors(corsOptions));
+
+// Explicit preflight handler
+app.options('*', cors(corsOptions));
+
 app.use(express.json({ limit: '10mb' }));
 
 /**
