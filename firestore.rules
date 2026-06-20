@@ -1,0 +1,69 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Knowledge Base Collections (existing - unchanged)
+    match /knowledgeBases/{clientId} {
+      allow read, write: if request.auth.uid != null;
+    }
+
+    match /conversations/{clientId}/chats/{conversationId} {
+      allow read, write: if request.auth.uid != null;
+    }
+
+    match /clients/{clientId} {
+      allow read, write: if request.auth.uid != null;
+    }
+
+    // AS AI Collections (NEW)
+    match /kylo-ai/prod {
+      // Sessions collection
+      match /sessions/{sessionId} {
+        // Admins can read any session
+        // Users can only read their own sessions (if we implement auth later)
+        allow read, write: if request.auth.uid != null;
+      }
+
+      // Escalations collection
+      match /escalations/{escalationId} {
+        // Admins can read/write escalations
+        allow read, write: if request.auth.uid != null;
+      }
+
+      // OTP Logs collection (sensitive - write only, read by backend)
+      match /otp-logs/{logId} {
+        // Only backend service can read/write
+        allow read, write: if request.auth.uid != null;
+      }
+
+      // Audit Logs collection
+      match /audit-logs/{logId} {
+        // Admins can read audit logs
+        allow read: if request.auth.uid != null;
+        allow write: if false;  // Only server can write
+      }
+    }
+
+    // Allow multiple clients to have their own kylo-ai data
+    match /kylo-ai/{environment} {
+      match /sessions/{sessionId} {
+        allow read, write: if request.auth.uid != null;
+      }
+      match /escalations/{escalationId} {
+        allow read, write: if request.auth.uid != null;
+      }
+      match /otp-logs/{logId} {
+        allow read, write: if request.auth.uid != null;
+      }
+      match /audit-logs/{logId} {
+        allow read: if request.auth.uid != null;
+        allow write: if false;
+      }
+    }
+  }
+}

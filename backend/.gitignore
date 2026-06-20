@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+out.txt
+output.log
+server-output.txt
+backend.log
+node-server.log
+debug.log
+
+# OS files
+nul
+.DS_Store
+
+# Test/Debug files (temporary development scripts)
+test-*.js
+debug.js
+diagnostic.js
+check-exports.js
+server-clean.js
+server-new.js
+simple-server.js
+test.sh
+
+# Build output
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
