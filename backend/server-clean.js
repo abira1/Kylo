@@ -45,6 +45,16 @@ const corsOptions = {
   preflightContinue: false
 };
 
+// Manual CORS header middleware - run BEFORE cors package
+app.use((req, res, next) => {
+  const origin = req.get('origin');
+  if (corsOptions.origin.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+  next();
+});
+
 // Apply CORS middleware FIRST before all routes
 app.use(cors(corsOptions));
 
