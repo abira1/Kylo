@@ -36,7 +36,7 @@ export interface QAItem {
 /**
  * Determine API base URL based on environment
  * - Development: use localhost:5001
- * - Production: use Firebase Cloud Function proxy (bypasses CORS issues)
+ * - Production: use Railway backend directly (handles CORS differently for API calls vs preflight)
  */
 function getApiBaseUrl(): string {
   const isLocalhost = typeof window !== 'undefined' && (
@@ -49,9 +49,8 @@ function getApiBaseUrl(): string {
     return 'http://localhost:5001';
   }
   
-  // In production, use Firebase Cloud Function proxy
-  // This bypasses CORS issues by proxying through Firebase domain
-  return 'https://kylo-support.web.app/api/v1';
+  // Production: use Railway backend
+  return 'https://kylo-production.up.railway.app';
 }
 
 const API_BASE_URL = getApiBaseUrl();
@@ -88,15 +87,18 @@ export const callClaudeAPI = async (
 
     const response = await fetch(`${API_BASE_URL}/api/chat`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      // Don't set Content-Type header to avoid preflight request
+      // The backend will still accept JSON because we're sending JSON
       body: JSON.stringify({
         clientId,
         conversationId,
         messages,
         qaContext,
       }),
+      headers: {
+        // Only include essential headers - avoid triggering preflight
+        'Accept': 'application/json',
+      },
     });
 
     if (!response.ok) {
