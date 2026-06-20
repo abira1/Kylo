@@ -15,12 +15,22 @@ export default async function handler(req, res) {
   try {
     const backendUrl = `${RAILWAY_BACKEND}/api/chat`;
 
+    // Prepare request body - handle both parsed objects and raw bodies
+    let requestBody = undefined;
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      if (typeof req.body === 'string') {
+        requestBody = req.body;
+      } else if (req.body) {
+        requestBody = JSON.stringify(req.body);
+      }
+    }
+
     const response = await fetch(backendUrl, {
       method: req.method,
       headers: {
         'Content-Type': 'application/json',
       },
-      body: req.method !== 'GET' && req.method !== 'HEAD' ? JSON.stringify(req.body) : undefined,
+      body: requestBody,
     });
 
     const data = await response.text();
@@ -32,9 +42,17 @@ export default async function handler(req, res) {
       // Keep as text if not JSON
     }
 
-    return res.status(response.status).json(parsedData);
+    // Forward response status and data
+    res.status(response.status);
+    
+    // Forward content type if available
+    if (response.headers.get('content-type')) {
+      res.setHeader('Content-Type', response.headers.get('content-type'));
+    }
+    
+    return res.send(parsedData);
   } catch (error) {
     console.error('Proxy error:', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message, message: 'Failed to proxy request to backend' });
   }
 }
