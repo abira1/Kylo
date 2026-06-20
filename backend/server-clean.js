@@ -48,13 +48,25 @@ const corsOptions = {
 // CORS middleware - test which headers pass through Railway
 app.use((req, res, next) => {
   const origin = req.get('origin');
+  console.log('[CORS MIDDLEWARE]', {
+    method: req.method,
+    origin: origin,
+    path: req.path,
+    timestamp: new Date().toISOString()
+  });
+  
   const allowedOrigins = ['https://kylo-support.web.app', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000'];
   
   if (allowedOrigins.includes(origin)) {
+    console.log('[CORS] Origin is allowed:', origin);
     // Standard CORS header
     res.setHeader('access-control-allow-origin', origin);
     // Test custom header
     res.setHeader('x-allow-origin', origin);
+    res.setHeader('x-debug-origin', 'DEBUG_' + origin);
+    console.log('[CORS] Headers set');
+  } else {
+    console.log('[CORS] Origin NOT allowed:', origin);
   }
   
   res.setHeader('access-control-allow-credentials', 'true');
@@ -64,6 +76,7 @@ app.use((req, res, next) => {
   
   // Handle OPTIONS requests
   if (req.method === 'OPTIONS') {
+    console.log('[CORS] Returning 200 for OPTIONS');
     return res.status(200).end();
   }
   
