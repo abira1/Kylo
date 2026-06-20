@@ -34,7 +34,7 @@ const allowedOrigins = [
 
 
 
-// CORS middleware - test which headers pass through Railway
+// CORS middleware - try wildcard as workaround for Railway filtering
 app.use((req, res, next) => {
   const origin = req.get('origin');
   console.log('[CORS MIDDLEWARE]', {
@@ -44,20 +44,8 @@ app.use((req, res, next) => {
     timestamp: new Date().toISOString()
   });
   
-  const allowedOrigins = ['https://kylo-support.web.app', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000'];
-  
-  if (allowedOrigins.includes(origin)) {
-    console.log('[CORS] Origin is allowed:', origin);
-    // Standard CORS header
-    res.setHeader('access-control-allow-origin', origin);
-    // Test custom header
-    res.setHeader('x-allow-origin', origin);
-    res.setHeader('x-debug-origin', 'DEBUG_' + origin);
-    console.log('[CORS] Headers set');
-  } else {
-    console.log('[CORS] Origin NOT allowed:', origin);
-  }
-  
+  // Try setting with wildcard (less restrictive but might bypass Railway filtering)
+  res.setHeader('access-control-allow-origin', '*');
   res.setHeader('access-control-allow-credentials', 'true');
   res.setHeader('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
   res.setHeader('access-control-allow-headers', 'Content-Type,Authorization,X-Requested-With,Accept');
