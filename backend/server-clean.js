@@ -45,19 +45,20 @@ const corsOptions = {
   preflightContinue: false
 };
 
-// CORS middleware - manually set all headers
+// CORS middleware - manually set all headers with lowercase names
 app.use((req, res, next) => {
   const origin = req.get('origin');
   const allowedOrigins = ['https://kylo-support.web.app', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000'];
   
   if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
+    // Use lowercase header names to match Railway's normalization
+    res.setHeader('access-control-allow-origin', origin);
   }
   
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept');
-  res.setHeader('Access-Control-Expose-Headers', 'Content-Type');
+  res.setHeader('access-control-allow-credentials', 'true');
+  res.setHeader('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+  res.setHeader('access-control-allow-headers', 'Content-Type,Authorization,X-Requested-With,Accept');
+  res.setHeader('access-control-expose-headers', 'Content-Type');
   
   // Handle OPTIONS requests
   if (req.method === 'OPTIONS') {
