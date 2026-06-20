@@ -29,7 +29,7 @@ test-*.js
 debug.js
 diagnostic.js
 check-exports.js
-server-clean.js
+# server-clean.js  <- Track this for production (CORS and API endpoints)
 server-new.js
 simple-server.js
 test.sh
