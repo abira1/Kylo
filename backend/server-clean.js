@@ -32,8 +32,11 @@ const allowedOrigins = [
   'https://kylo-support.web.app'
 ];
 
-// HARDCODED CORS - No conditions, just set it
+// DEBUG CORS - Add custom header to test middleware
 app.use((req, res, next) => {
+  // Test header to verify middleware runs
+  res.setHeader('X-CORS-Test', 'middleware-running');
+  
   // ALWAYS set these headers - no conditions
   res.setHeader('Access-Control-Allow-Origin', 'https://kylo-support.web.app');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
