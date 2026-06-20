@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const Anthropic = require('@anthropic-ai/sdk');
 
 // Import services and routes
@@ -33,17 +32,7 @@ const allowedOrigins = [
   'https://kylo-support.web.app'
 ];
 
-// CORS Configuration - Using cors package with explicit configuration
-const corsOptions = {
-  origin: ['https://kylo-support.web.app', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  exposedHeaders: ['Content-Type', 'X-Total-Count'],
-  optionsSuccessStatus: 200,
-  maxAge: 86400,
-  preflightContinue: false
-};
+
 
 // CORS middleware - test which headers pass through Railway
 app.use((req, res, next) => {
@@ -77,7 +66,7 @@ app.use((req, res, next) => {
   // Handle OPTIONS requests
   if (req.method === 'OPTIONS') {
     console.log('[CORS] Returning 200 for OPTIONS');
-    return res.status(200).end();
+    return res.status(200).send('');
   }
   
   next();
