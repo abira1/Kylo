@@ -32,18 +32,10 @@ const allowedOrigins = [
   'https://kylo-support.web.app'
 ];
 
-// AGGRESSIVE CORS MIDDLEWARE - Always set headers
+// HARDCODED CORS - No conditions, just set it
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  
-  // Always set origin header if it's whitelisted
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  } else if (origin === 'https://kylo-support.web.app') {
-    res.setHeader('Access-Control-Allow-Origin', 'https://kylo-support.web.app');
-  }
-  
-  // ALWAYS set these headers
+  // ALWAYS set these headers - no conditions
+  res.setHeader('Access-Control-Allow-Origin', 'https://kylo-support.web.app');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,HEAD,PATCH');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept');
@@ -52,7 +44,6 @@ app.use((req, res, next) => {
   
   // Preflight request handler
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', 'https://kylo-support.web.app');
     return res.status(200).send();
   }
   
