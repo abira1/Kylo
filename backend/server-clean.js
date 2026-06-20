@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const Anthropic = require('@anthropic-ai/sdk');
 
 // Import services and routes
@@ -24,52 +23,35 @@ console.log('[STARTUP] Client created successfully');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS Configuration with dynamic origin check
+// Allowed origins for CORS
 const allowedOrigins = [
-  // Development
-  'http://localhost:5173', 
-  'http://localhost:5174', 
-  'http://localhost:5175', 
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
   'http://localhost:3000',
-  // Production
   'https://kylo-support.web.app'
 ];
 
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('CORS not allowed'), false);
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['Content-Type'],
-  optionsSuccessStatus: 200,
-  maxAge: 86400
-};
-
-// Apply CORS to all routes
-app.use(cors(corsOptions));
-
-// Explicit preflight handler for all routes
-app.options('*', cors(corsOptions));
-
-// Additional manual CORS header middleware to ensure headers are set
+// SIMPLE CORS MIDDLEWARE - Set headers for all requests
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+  
+  // Allow if origin is in whitelist
   if (allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
-    res.setHeader('Access-Control-Expose-Headers', 'Content-Type');
   }
+  
+  // Set for all requests
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,HEAD,PATCH');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  
+  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
+  
   next();
 });
 
