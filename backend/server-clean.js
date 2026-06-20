@@ -24,27 +24,37 @@ console.log('[STARTUP] Client created successfully');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS Configuration
+// CORS Configuration with dynamic origin check
+const allowedOrigins = [
+  // Development
+  'http://localhost:5173', 
+  'http://localhost:5174', 
+  'http://localhost:5175', 
+  'http://localhost:3000',
+  // Production
+  'https://kylo-support.web.app'
+];
+
 const corsOptions = {
-  origin: [
-    // Development
-    'http://localhost:5173', 
-    'http://localhost:5174', 
-    'http://localhost:5175', 
-    'http://localhost:3000',
-    // Production
-    'https://kylo-support.web.app'
-  ],
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS not allowed'), false);
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Type'],
   optionsSuccessStatus: 200,
   maxAge: 86400
 };
 
+// Apply CORS to all routes
 app.use(cors(corsOptions));
 
-// Explicit preflight handler
+// Explicit preflight handler for all routes
 app.options('*', cors(corsOptions));
 
 app.use(express.json({ limit: '10mb' }));
