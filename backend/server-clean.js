@@ -45,17 +45,29 @@ const corsOptions = {
   preflightContinue: false
 };
 
-// Manual CORS header middleware - ALWAYS set headers regardless of origin
+// CORS middleware - manually set all headers since Railway filters Access-Control-Allow-Origin
 app.use((req, res, next) => {
   const origin = req.get('origin');
-  console.log('[CORS] Origin header:', origin);
+  const allowedOrigins = ['https://kylo-support.web.app', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000'];
   
-  // ALWAYS set the header for testing
-  res.setHeader('Access-Control-Allow-Origin', 'https://kylo-support.web.app');
+  if (allowedOrigins.includes(origin)) {
+    // Try multiple variations of the header name
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('access-control-allow-origin', origin);
+    res.set('Access-Control-Allow-Origin', origin);
+  }
+  
   res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Type');
   
-  console.log('[CORS] Headers set in middleware');
-  next();
+  // Handle OPTIONS requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+  } else {
+    next();
+  }
 });
 
 // Apply CORS middleware FIRST before all routes
