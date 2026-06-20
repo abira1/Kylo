@@ -34,27 +34,19 @@ const allowedOrigins = [
 
 
 
-// CORS middleware - try wildcard as workaround for Railway filtering
+// CORS middleware - try using res.header() method  
 app.use((req, res, next) => {
-  const origin = req.get('origin');
-  console.log('[CORS MIDDLEWARE]', {
-    method: req.method,
-    origin: origin,
-    path: req.path,
-    timestamp: new Date().toISOString()
-  });
+  const origin = req.get('origin') || '*';
   
-  // Try setting with wildcard (less restrictive but might bypass Railway filtering)
-  res.setHeader('access-control-allow-origin', '*');
-  res.setHeader('access-control-allow-credentials', 'true');
-  res.setHeader('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-  res.setHeader('access-control-allow-headers', 'Content-Type,Authorization,X-Requested-With,Accept');
-  res.setHeader('access-control-expose-headers', 'Content-Type');
+  // Try res.header() method instead of res.setHeader()
+  res.header('Access-Control-Allow-Origin', origin);
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept');
+  res.header('Access-Control-Expose-Headers', 'Content-Type');
   
   // Handle OPTIONS requests
   if (req.method === 'OPTIONS') {
-    console.log('[CORS] Returning 200 for OPTIONS');
-    res.setHeader('Content-Type', 'application/json');
     return res.status(200).json({ok: true});
   }
   
