@@ -36,27 +36,22 @@ export interface QAItem {
 /**
  * Determine API base URL based on environment
  * - Development: use localhost:5001
- * - Production: use VITE_API_BASE_URL or show helpful error
+ * - Production: use Firebase Cloud Function proxy (bypasses CORS issues)
  */
 function getApiBaseUrl(): string {
-  const envUrl = import.meta.env.VITE_API_BASE_URL;
   const isLocalhost = typeof window !== 'undefined' && (
     window.location.hostname === 'localhost' ||
     window.location.hostname === '127.0.0.1' ||
     window.location.hostname.includes('5173')
   );
   
-  if (envUrl) {
-    return envUrl;
-  }
-  
   if (isLocalhost) {
     return 'http://localhost:5001';
   }
   
-  // For production without backend configured, use a fallback
-  // This will fail gracefully with an error message
-  return 'http://backend-not-configured.local';
+  // In production, use Firebase Cloud Function proxy
+  // This bypasses CORS issues by proxying through Firebase domain
+  return 'https://kylo-support.web.app/api/v1';
 }
 
 const API_BASE_URL = getApiBaseUrl();

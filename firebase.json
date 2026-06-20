@@ -11,9 +11,25 @@
     ],
     "rewrites": [
       {
+        "source": "/api/v1/chat",
+        "function": "chat"
+      },
+      {
+        "source": "/api/v1/health",
+        "function": "health"
+      },
+      {
+        "source": "/api/v1/**",
+        "function": "apiProxy"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
     ]
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs18"
   }
 }
