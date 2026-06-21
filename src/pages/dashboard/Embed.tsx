@@ -153,12 +153,16 @@ export function Embed() {
    */
   const hasEnoughLeadData = (): boolean => {
     const context = conversationContext;
-    // Need at least a name + one other field (email, phone, country, or businessType)
+    // SIMPLE: Need at least name + phone number to save a lead
+    // Everything else is OPTIONAL
     const hasName = context.fullName || context.name;
-    const hasContact = context.email || context.phone;
-    const hasDetails = context.country || context.businessType || context.nationality;
+    const hasPhone = context.phone && context.phone.trim();
     
-    return !!(hasName && (hasContact || hasDetails));
+    const isReady = !!(hasName && hasPhone);
+    if (isReady) {
+      console.log('[LEAD CHECK] ✅ Minimum data ready: name + phone');
+    }
+    return isReady;
   };
 
   /**
@@ -185,9 +189,11 @@ export function Embed() {
       const leadData = {
         conversationId,
         messages: messages,
+        // REQUIRED: name and phone
         name: conversationContext.fullName || conversationContext.name || 'Unknown',
-        email: conversationContext.email || '',
         phone: conversationContext.phone || '',
+        // OPTIONAL: everything else
+        email: conversationContext.email || '',
         country: conversationContext.nationality || conversationContext.country || '',
         businessType: conversationContext.businessType || '',
         passportNumber: conversationContext.passportNumber || '',
@@ -195,7 +201,7 @@ export function Embed() {
         extractedData: conversationContext,
         status: 'new',
         source: forceSource || (conversationContext.passportNumber ? 'passport_upload' : 'chat'),
-        notes: `Lead auto-captured. Extracted: ${Object.keys(conversationContext).filter(k => conversationContext[k]).join(', ')}`
+        notes: `Lead auto-captured with name+phone. Source: ${forceSource || 'chat'}`
       };
 
       console.log('[LEAD] Sending POST request to /api/leads with data:', leadData);
@@ -329,10 +335,18 @@ export function Embed() {
         lastUpdateTime: new Date().toISOString()
       }));
 
-      // Auto-save if we have enough data
-      setTimeout(() => {
-        autoSaveLead();
-      }, 500);
+      // Auto-save if we have minimum data (name + phone)
+      if (hasEnoughLeadData()) {
+        console.log('[CHAT] User provided info, checking if we can save lead...');
+        setTimeout(() => {
+          autoSaveLead();
+        }, 300);
+      } else {
+        console.log('[CHAT] Not enough data yet. Current context:', { 
+          name: conversationContext.name, 
+          phone: conversationContext.phone 
+        });
+      }
 
     } catch (error) {
       setIsTyping(false);
@@ -366,13 +380,15 @@ export function Embed() {
       }));
     }
 
-    // Phone pattern (simple UAE/international)
-    const phoneMatch = input.match(/(\+?971|0)?[\d\s\-]{7,}/);
+    // Phone pattern - more flexible for international formats
+    // Matches: 1234567890, +1234567890, +1 234 567 8900, 050-123-4567, etc.
+    const phoneMatch = input.match(/(?:\+\d{1,3}[\s.-]?)?\(?(\d{3})\)?[\s.-]?(\d{3})[\s.-]?(\d{4,})/);
     if (phoneMatch) {
-      setConversationContext(prev => ({
-        ...prev,
-        phone: phoneMatch[0].trim()
-      }));
+      const cleanPhone = input.match(/[\d\s\-\+\.]/g)?.join('') || phoneMatch[0];
+      setConversationContext(prev => {
+        console.log('[INPUT] Detected phone:', cleanPhone);
+        return { ...prev, phone: cleanPhone };
+      });
     }
 
     // Country detection
@@ -385,14 +401,19 @@ export function Embed() {
       }));
     }
 
-    // Name detection - if first message and looks like a name
-    if (input.length < 50 && !input.includes('@') && !input.includes('+')) {
-      const words = input.split(' ');
-      if (words.length <= 3 && words.every(w => /^[a-zA-Z\s'-]+$/.test(w))) {
-        setConversationContext(prev => ({
-          ...prev,
-          name: input.trim()
-        }));
+    // Name detection - capture any text that looks like a name
+    if (input.length < 50 && !input.includes('@') && !input.match(/\d{3,}/)) {
+      // Simple heuristic: if it's short text with mostly letters, treat as name
+      const alphaRatio = (input.match(/[a-zA-Z\s'-]/g) || []).length / input.length;
+      if (alphaRatio > 0.7) {
+        setConversationContext(prev => {
+          const newName = input.trim();
+          if (newName && newName.length > 1) {
+            console.log('[INPUT] Detected name:', newName);
+            return { ...prev, name: newName };
+          }
+          return prev;
+        });
       }
     }
   };

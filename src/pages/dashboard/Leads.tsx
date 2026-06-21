@@ -134,8 +134,23 @@ export function Leads() {
     await fetchLeads(true);
   };
 
-  // Filter leads
-  const filteredLeads = leads.filter(lead => {
+  // Filter leads - MUST have name + phone (minimum requirement)
+  const validLeads = leads.filter(lead => {
+    const hasName = lead.name && lead.name.trim();
+    const hasPhone = lead.phone && lead.phone.trim();
+    
+    if (!hasName || !hasPhone) {
+      console.log('[LEADS] Skipping invalid lead (missing name/phone):', { 
+        name: lead.name, 
+        phone: lead.phone 
+      });
+      return false;
+    }
+    return true;
+  });
+
+  // Then apply search/status filters
+  const filteredLeads = validLeads.filter(lead => {
     // Debug: Log why leads are filtered
     const matchesSearch = 
       lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -154,7 +169,8 @@ export function Leads() {
     }
     return passes;
   });
-  console.log('[LEADS] Filtered:', filteredLeads.length, 'from', leads.length, '(search:', searchTerm, ', status:', statusFilter, ')');
+  console.log('[LEADS] Valid:', validLeads.length, 'from', leads.length, '-> Filtered:', filteredLeads.length, '(search:', searchTerm, ', status:', statusFilter, ')');
+
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'new':
@@ -173,14 +189,21 @@ export function Leads() {
   };
 
   const calculateScore = (lead: Lead) => {
-    // Score based on completeness of lead data
+    // Score based on lead completeness
+    // Base: 50 points for having name + phone (minimum required)
+    // +20 each for optional fields
     let score = 0;
-    if (lead.name) score += 20;
+    
+    // Base 50 points for required fields
+    if (lead.name) score += 25;
+    if (lead.phone) score += 25;
+    
+    // +20 points for each optional field
     if (lead.email) score += 20;
-    if (lead.phone) score += 20;
-    if (lead.country) score += 20;
-    if (lead.extractedData && Object.keys(lead.extractedData).length > 0) score += 20;
-    return score;
+    if (lead.country) score += 15;
+    if (lead.extractedData && Object.keys(lead.extractedData).length > 0) score += 15;
+    
+    return Math.min(score, 100);
   };
 
   const handleExportCSV = () => {
@@ -216,7 +239,7 @@ export function Leads() {
             Lead Inbox
           </h1>
           <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 font-medium">
-            Manage and qualify leads captured by your AI. ({filteredLeads.length} of {leads.length} leads)
+            Manage and qualify leads captured by your AI. ({filteredLeads.length} of {validLeads.length} leads{validLeads.length < leads.length && ` - ${leads.length - validLeads.length} invalid`})
             {(searchTerm || statusFilter !== 'all') && (
               <span className="text-xs ml-2 text-orange-600 dark:text-orange-400">
                 🔍 Filtered
@@ -317,7 +340,11 @@ export function Leads() {
                 </div>
               ) : (
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                  {leads.length > 0 ? 'All leads are currently hidden by filters' : 'Leads will appear here when captured from chats'}
+                  {leads.length > validLeads.length 
+                    ? `⚠️ ${leads.length - validLeads.length} leads are incomplete (missing name or phone)` 
+                    : validLeads.length > 0
+                    ? 'All leads are currently hidden by filters' 
+                    : 'Leads will appear here when captured from chats'}
                 </p>
               )}
             </div>

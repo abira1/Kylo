@@ -254,39 +254,39 @@ async function saveLead(clientId, leadData) {
   try {
     console.log(`[FIREBASE SAVESLEAD] Starting save for client: ${clientId}`);
     
-    // FAST DUPLICATE CHECK: Use conversationId as unique key
-    // Each conversation can only create ONE lead (prevents multiple saves from same chat)
+    // Validate minimum required fields
+    if (!leadData.name || !leadData.phone) {
+      console.error(`[FIREBASE SAVESLEAD] ❌ Validation failed - name: '${leadData.name}', phone: '${leadData.phone}'`);
+      throw new Error('Lead requires at least name and phone number');
+    }
+    
+    // FAST DUPLICATE CHECK with timeout
     if (leadData.conversationId) {
       try {
-        console.log(`[FIREBASE SAVESLEAD] Checking for existing lead with conversationId: ${leadData.conversationId}`);
-        const existingDocs = await db.collection('leads')
-          .doc(clientId)
-          .collection('items')
-          .where('conversationId', '==', leadData.conversationId)
-          .limit(1)
-          .get();
+        console.log(`[FIREBASE SAVESLEAD] Checking conversationId: ${leadData.conversationId}`);
+        const existingDocs = await Promise.race([
+          db.collection('leads')
+            .doc(clientId)
+            .collection('items')
+            .where('conversationId', '==', leadData.conversationId)
+            .limit(1)
+            .get(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500))
+        ]);
         
         if (!existingDocs.empty) {
           const existingLead = existingDocs.docs[0].data();
-          console.log(`[FIREBASE SAVESLEAD] ⚠️ DUPLICATE PREVENTED: Lead already exists for this conversation`);
-          console.log(`[FIREBASE SAVESLEAD] Existing lead:`, { 
-            id: existingLead.id, 
-            name: existingLead.name, 
-            email: existingLead.email,
-            source: existingLead.source
-          });
-          console.log(`[FIREBASE SAVESLEAD] Returning existing lead instead of creating duplicate`);
+          console.log(`[FIREBASE SAVESLEAD] ⚠️ DUPLICATE PREVENTED - Lead ID: ${existingLead.id}`);
           return {
             id: existingLead.id,
             clientId: existingLead.clientId,
             name: existingLead.name,
-            email: existingLead.email,
+            phone: existingLead.phone,
             isDuplicate: true
           };
         }
       } catch (dupError) {
-        // Log but don't fail - continue with save if duplicate check fails
-        console.error(`[FIREBASE SAVESLEAD] Duplicate check error (continuing with save):`, dupError.message);
+        console.log(`[FIREBASE SAVESLEAD] Duplicate check skipped (${dupError.message})`);
       }
     }
     

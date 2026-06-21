@@ -408,6 +408,55 @@ app.put('/api/leads/:clientId/:leadId', async (req, res) => {
 });
 
 /**
+ * CLEANUP ENDPOINT - REMOVE INVALID LEADS
+ * DELETE /api/cleanup/invalid-leads/:clientId
+ */
+app.delete('/api/cleanup/invalid-leads/:clientId', async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    
+    // Require admin auth token
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    console.log(`[CLEANUP] Starting invalid leads cleanup for client: ${clientId}`);
+    
+    const leadsRef = db.collection('leads').doc(clientId).collection('items');
+    const snapshot = await leadsRef.get();
+    
+    let deleted = 0;
+    const batch = db.batch();
+    
+    for (const doc of snapshot.docs) {
+      const lead = doc.data();
+      const hasName = lead.name && lead.name.trim();
+      const hasPhone = lead.phone && lead.phone.trim();
+      
+      if (!hasName || !hasPhone) {
+        console.log(`[CLEANUP] Deleting invalid lead: "${lead.name}" (phone: "${lead.phone}")`);
+        batch.delete(doc.ref);
+        deleted++;
+      }
+    }
+    
+    await batch.commit();
+    console.log(`[CLEANUP] Deleted ${deleted} invalid leads`);
+    
+    res.json({
+      success: true,
+      deletedCount: deleted,
+      message: `Removed ${deleted} invalid leads`
+    });
+    
+  } catch (error) {
+    console.error('[CLEANUP ERROR]', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET CONVERSATIONS ENDPOINT
  * Fetch all conversations for a client
  */
