@@ -170,7 +170,7 @@ export function Embed() {
         }
         
         // Fetch the user's client profile to get their publicWidgetKey
-        const response = await fetch(`/api/client-profile`, {
+        const response = await fetch(`${API_BASE_URL}/api/client-profile`, {
           headers: {
             'Authorization': `Bearer ${user?.uid}`,
           }
