@@ -377,7 +377,7 @@ export function Embed() {
                   .replace(/([A-Z])/g, ' $1') // Add space before capitals
                   .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
                   .replace(/^Confidence/, 'Confidence Score'); // Special case
-                return `• **${readableKey}**: ${value}`;
+                return `${readableKey}: ${value}`;
               })
               .join('\n');
 
@@ -385,7 +385,7 @@ export function Embed() {
               // Show extracted data confirmation with preview
               const confirmMsg: Message = {
                 id: (Date.now() + 2).toString(),
-                text: `✓ Perfect! I've successfully extracted the information from your document:\n\n${formattedData}\n\n**Please review the details. Is everything correct?**`,
+                text: `✓ Perfect! I've successfully extracted the following information from your document:\n\n${formattedData}\n\nPlease review the details. Is everything correct?`,
                 isBot: true,
                 options: ['Yes, looks good!', 'No, let me correct']
               };
@@ -394,7 +394,7 @@ export function Embed() {
               // Data was extracted but empty after filtering - shouldn't happen
               const retryMsg: Message = {
                 id: (Date.now() + 2).toString(),
-                text: `I received your document, but I wasn't able to extract readable information from the image. This might be due to image quality or lighting.\n\n**Please try:**\n• Upload a clearer photo with better lighting\n• Ensure the entire document is visible\n• Use good contrast (not blurry or at an angle)`,
+                text: `I received your document, but I wasn't able to extract readable information from the image. This might be due to image quality or lighting.\n\nPlease try:\n• Upload a clearer photo with better lighting\n• Ensure the entire document is visible\n• Use good contrast (not blurry or at an angle)`,
                 isBot: true,
                 options: ['Upload another image', 'Fill manually instead']
               };
@@ -608,7 +608,7 @@ export function Embed() {
                   <div key={msg.id}>
                     <div className={`flex ${msg.isBot ? 'justify-start' : 'justify-end'}`}>
                       <div
-                        className={`max-w-[85%] p-3 text-sm shadow-sm ${
+                        className={`max-w-[85%] p-3 text-sm shadow-sm whitespace-pre-wrap break-words ${
                           msg.isBot
                             ? 'bg-white dark:bg-navy-800 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm border border-gray-100 dark:border-navy-700'
                             : 'text-white rounded-2xl rounded-tr-sm'
