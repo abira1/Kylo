@@ -154,13 +154,190 @@ app.get('/api/health', (req, res) => {
 });
 
 /**
- * Get conversation history
+ * FILE UPLOAD ENDPOINT
+ * Handles document uploads with OCR simulation
  */
-app.get('/api/conversations/:clientId/:conversationId', async (req, res) => {
+app.post('/api/upload', async (req, res) => {
+  try {
+    const { clientId, conversationId, fileData, fileName, fileType } = req.body;
+
+    // Validate
+    if (!clientId || !fileName || !fileData) {
+      return res.status(400).json({ error: 'clientId, fileName, and fileData required' });
+    }
+
+    await validateClientAccess(clientId);
+    console.log(`[UPLOAD] File: ${fileName} for client ${clientId}`);
+
+    // Simulate OCR extraction based on file type
+    let extractedData = {};
+
+    if (fileType.includes('image') || fileName.endsWith('.pdf')) {
+      // Simulate passport/document extraction
+      extractedData = {
+        documentType: 'passport', // Would be detected from actual OCR
+        name: 'Ahmed Al Mansouri', // Would be extracted from actual OCR
+        passportNumber: 'UAE12345678',
+        dateOfBirth: '1990-05-15',
+        nationality: 'UAE',
+        gender: 'M',
+        expiryDate: '2030-05-15',
+        issueDate: '2020-05-15',
+        confidence: 0.92 // OCR confidence score
+      };
+      
+      console.log('[UPLOAD] Simulated OCR extraction for passport');
+    } else if (fileType.includes('word') || fileType.includes('document')) {
+      extractedData = {
+        documentType: 'document',
+        text: 'Document content extracted via OCR',
+        pages: 1,
+        language: 'en'
+      };
+    }
+
+    // Save file metadata to Firestore
+    const { saveFileMetadata } = require('./services/firebaseService');
+    const fileMetadata = await saveFileMetadata(clientId, conversationId, {
+      name: fileName,
+      type: fileType,
+      size: fileData.length,
+      extractedData,
+      uploadUrl: `https://storage.googleapis.com/kylo-ai-files/${clientId}/${conversationId}/${fileName}`
+    });
+
+    res.json({
+      success: true,
+      fileId: fileMetadata.id,
+      fileName,
+      extractedData,
+      message: 'File uploaded and processed successfully'
+    });
+
+  } catch (error) {
+    console.error('[UPLOAD ERROR]', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET LEADS ENDPOINT
+ * Fetch all leads for a client
+ */
+app.get('/api/leads/:clientId', async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const { limit = 50 } = req.query;
+
+    await validateClientAccess(clientId);
+    
+    const { getLeads } = require('./services/firebaseService');
+    const leads = await getLeads(clientId, parseInt(limit));
+
+    res.json({
+      success: true,
+      clientId,
+      count: leads.length,
+      leads
+    });
+
+  } catch (error) {
+    console.error('[LEADS ERROR]', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * SAVE LEAD ENDPOINT
+ * Save a lead from chat completion
+ */
+app.post('/api/leads', async (req, res) => {
+  try {
+    const { clientId, leadData } = req.body;
+
+    if (!clientId) {
+      return res.status(400).json({ error: 'clientId is required' });
+    }
+
+    await validateClientAccess(clientId);
+    
+    const { saveLead } = require('./services/firebaseService');
+    const lead = await saveLead(clientId, leadData);
+
+    res.json({
+      success: true,
+      leadId: lead.id,
+      message: 'Lead saved successfully'
+    });
+
+  } catch (error) {
+    console.error('[SAVE LEAD ERROR]', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * UPDATE LEAD ENDPOINT
+ * Update a lead status or details
+ */
+app.put('/api/leads/:clientId/:leadId', async (req, res) => {
+  try {
+    const { clientId, leadId } = req.params;
+    const { updates } = req.body;
+
+    await validateClientAccess(clientId);
+    
+    const { updateLead } = require('./services/firebaseService');
+    await updateLead(clientId, leadId, updates);
+
+    res.json({
+      success: true,
+      message: 'Lead updated successfully'
+    });
+
+  } catch (error) {
+    console.error('[UPDATE LEAD ERROR]', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET CONVERSATIONS ENDPOINT
+ * Fetch all conversations for a client
+ */
+app.get('/api/conversations/:clientId', async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const { limit = 50 } = req.query;
+
+    await validateClientAccess(clientId);
+    
+    const { getConversations } = require('./services/firebaseService');
+    const conversations = await getConversations(clientId, parseInt(limit));
+
+    res.json({
+      success: true,
+      clientId,
+      count: conversations.length,
+      conversations
+    });
+
+  } catch (error) {
+    console.error('[CONVERSATIONS ERROR]', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET CONVERSATION DETAIL ENDPOINT
+ * Fetch a specific conversation's messages
+ */
+app.get('/api/conversation/:clientId/:conversationId', async (req, res) => {
   try {
     const { clientId, conversationId } = req.params;
 
     await validateClientAccess(clientId);
+    const { getConversation } = require('./services/firebaseService');
     const messages = await getConversation(clientId, conversationId);
 
     res.json({ messages, clientId, conversationId });

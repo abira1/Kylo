@@ -247,6 +247,190 @@ async function deleteKBItem(clientId, itemId) {
   }
 }
 
+/**
+ * Save lead from chat conversation
+ */
+async function saveLead(clientId, leadData) {
+  try {
+    const leadId = `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const lead = {
+      id: leadId,
+      clientId,
+      name: leadData.name || '',
+      email: leadData.email || '',
+      phone: leadData.phone || '',
+      country: leadData.country || '',
+      businessType: leadData.businessType || '',
+      conversationId: leadData.conversationId || '',
+      messages: leadData.messages || [],
+      extractedData: leadData.extractedData || {},
+      documentUploads: leadData.documentUploads || [],
+      status: leadData.status || 'new', // new, qualified, contacted, won, lost
+      source: 'chat', // or 'form', 'whatsapp', etc
+      createdAt: admin.firestore.Timestamp.now(),
+      updatedAt: admin.firestore.Timestamp.now(),
+      notes: leadData.notes || ''
+    };
+
+    await db.collection('leads')
+      .doc(clientId)
+      .collection('items')
+      .doc(leadId)
+      .set(lead);
+
+    console.log(`[FIREBASE] Lead saved: ${leadId} for client ${clientId}`);
+    return lead;
+  } catch (error) {
+    console.error('[FIREBASE] Error saving lead:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * Get all leads for a client
+ */
+async function getLeads(clientId, limit = 50) {
+  try {
+    const snapshot = await db.collection('leads')
+      .doc(clientId)
+      .collection('items')
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+      .get();
+
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+      updatedAt: doc.data().updatedAt?.toDate?.() || new Date()
+    }));
+  } catch (error) {
+    console.error('[FIREBASE] Error getting leads:', error.message);
+    return [];
+  }
+}
+
+/**
+ * Get lead by ID
+ */
+async function getLead(clientId, leadId) {
+  try {
+    const doc = await db.collection('leads')
+      .doc(clientId)
+      .collection('items')
+      .doc(leadId)
+      .get();
+
+    if (!doc.exists) return null;
+
+    return {
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+      updatedAt: doc.data().updatedAt?.toDate?.() || new Date()
+    };
+  } catch (error) {
+    console.error('[FIREBASE] Error getting lead:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Update lead
+ */
+async function updateLead(clientId, leadId, updates) {
+  try {
+    await db.collection('leads')
+      .doc(clientId)
+      .collection('items')
+      .doc(leadId)
+      .update({
+        ...updates,
+        updatedAt: admin.firestore.Timestamp.now()
+      });
+
+    console.log(`[FIREBASE] Lead updated: ${leadId}`);
+  } catch (error) {
+    console.error('[FIREBASE] Error updating lead:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * Delete lead
+ */
+async function deleteLead(clientId, leadId) {
+  try {
+    await db.collection('leads')
+      .doc(clientId)
+      .collection('items')
+      .doc(leadId)
+      .delete();
+
+    console.log(`[FIREBASE] Lead deleted: ${leadId}`);
+  } catch (error) {
+    console.error('[FIREBASE] Error deleting lead:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * Get all conversations for a client
+ */
+async function getConversations(clientId, limit = 50) {
+  try {
+    const snapshot = await db.collection('conversations')
+      .doc(clientId)
+      .collection('chats')
+      .orderBy('updatedAt', 'desc')
+      .limit(limit)
+      .get();
+
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      updatedAt: doc.data().updatedAt?.toDate?.() || new Date()
+    }));
+  } catch (error) {
+    console.error('[FIREBASE] Error getting conversations:', error.message);
+    return [];
+  }
+}
+
+/**
+ * Save file metadata (for uploads)
+ */
+async function saveFileMetadata(clientId, conversationId, fileData) {
+  try {
+    const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const file = {
+      id: fileId,
+      clientId,
+      conversationId,
+      name: fileData.name || '',
+      type: fileData.type || '',
+      size: fileData.size || 0,
+      uploadUrl: fileData.uploadUrl || '',
+      extractedData: fileData.extractedData || {},
+      createdAt: admin.firestore.Timestamp.now()
+    };
+
+    await db.collection('files')
+      .doc(clientId)
+      .collection('items')
+      .doc(fileId)
+      .set(file);
+
+    console.log(`[FIREBASE] File metadata saved: ${fileId}`);
+    return file;
+  } catch (error) {
+    console.error('[FIREBASE] Error saving file metadata:', error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   db,
   auth,
@@ -257,6 +441,13 @@ module.exports = {
   getMergedKB,
   saveConversation,
   getConversation,
+  getConversations,
   upsertKBItem,
-  deleteKBItem
+  deleteKBItem,
+  saveLead,
+  getLeads,
+  getLead,
+  updateLead,
+  deleteLead,
+  saveFileMetadata
 };
