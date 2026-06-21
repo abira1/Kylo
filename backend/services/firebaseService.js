@@ -86,10 +86,21 @@ async function getOrCreateClient(clientId) {
     // Client doesn't exist - auto-create it
     console.log(`[FIREBASE] Auto-provisioning new client: ${clientId}`);
     
+    // Generate a unique public widget key
+    const generatePublicKey = () => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let key = '';
+      for (let i = 0; i < 20; i++) {
+        key += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return `pk_live_${key}`;
+    };
+    
     const newClient = {
       id: clientId,
       name: `Client ${clientId.substring(0, 8)}`,
       displayName: `Client ${clientId.substring(0, 8)}`,
+      publicWidgetKey: generatePublicKey(),
       tier: 'free',
       status: 'active',
       createdAt: new Date(),
@@ -106,7 +117,7 @@ async function getOrCreateClient(clientId) {
       createdAt: new Date()
     });
     
-    console.log(`[FIREBASE] Client created: ${clientId}`);
+    console.log(`[FIREBASE] Client created: ${clientId} with publicKey: ${newClient.publicWidgetKey}`);
     return newClient;
   }
 }

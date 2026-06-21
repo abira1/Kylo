@@ -9,7 +9,7 @@ console.log('='.repeat(70) + '\n');
 
 // Import services and routes
 const { buildSystemPrompt, validateClientAccess } = require('./services/multiTenantService');
-const { saveConversation, getConversation, getLeads, saveLead, updateLead, getConversations, saveFileMetadata, cleanupInvalidLeads } = require('./services/firebaseService');
+const { db: firestore, saveConversation, getConversation, getLeads, saveLead, updateLead, getConversations, saveFileMetadata, cleanupInvalidLeads } = require('./services/firebaseService');
 const kbRoutes = require('./routes/knowledgeBase');
 const adminKbRoutes = require('./routes/admin-kb-upload');
 const kyloAIRoutes = require('./routes/kylo-ai-sessions');
@@ -60,6 +60,65 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 
 /**
+ * UTILITY: Generate a public widget key
+ * Format: pk_live_[random alphanumeric]
+ */
+const generatePublicKey = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let key = '';
+  for (let i = 0; i < 20; i++) {
+    key += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `pk_live_${key}`;
+};
+
+/**
+ * BRANDING ENDPOINT
+ * Resolves public key to client record and returns branding data
+ */
+app.get('/api/branding/:publicKey', async (req, res) => {
+  try {
+    const { publicKey } = req.params;
+    
+    console.log(`[BRANDING] Lookup request for publicKey: ${publicKey}`);
+    
+    if (!publicKey || !publicKey.startsWith('pk_live_')) {
+      return res.status(400).json({ error: 'Invalid public key format' });
+    }
+    
+    // Server-side lookup: find client by publicWidgetKey
+    const clientsSnapshot = await firestore.collection('clients')
+      .where('publicWidgetKey', '==', publicKey)
+      .limit(1)
+      .get();
+    
+    if (clientsSnapshot.empty) {
+      console.warn(`[BRANDING] Public key not found: ${publicKey}`);
+      return res.status(404).json({ error: 'Widget key not found' });
+    }
+    
+    const clientDoc = clientsSnapshot.docs[0];
+    const clientData = clientDoc.data();
+    const clientId = clientDoc.id;
+    
+    console.log(`[BRANDING] Resolved publicKey ${publicKey} to clientId ${clientId}`);
+    
+    // Return only branding data (never expose internal clientId)
+    res.json({
+      agentName: clientData.agentName || 'Support Assistant',
+      primaryColor: clientData.primaryColor || '#06b6d4',
+      logoURL: clientData.logoURL || null,
+      position: clientData.position || 'bottom-right',
+      cachedUntil: new Date(Date.now() + 5 * 60 * 1000).toISOString() // Cache for 5 minutes
+    });
+    
+  } catch (error) {
+    console.error('[BRANDING] Error:', error);
+    res.status(500).json({ error: 'Failed to fetch branding' });
+  }
+});
+
+/**
  * HEALTH CHECK ENDPOINT
  * Simple health check to verify server is running
  */
@@ -70,6 +129,48 @@ app.get('/api/health', (req, res) => {
     version: '2.0-with-lead-persistence',
     diagnostic: 'THIS_IS_SERVER_CLEAN_JS_LATEST'
   });
+});
+
+/**
+ * CLIENT PROFILE ENDPOINT
+ * Returns user's client profile including publicWidgetKey
+ * Requires: Authorization header with user ID (or Bearer token)
+ */
+app.get('/api/client-profile', async (req, res) => {
+  try {
+    // Get clientId from Authorization header or Bearer token
+    const authHeader = req.headers.authorization || '';
+    const clientId = authHeader.replace('Bearer ', '').trim();
+    
+    if (!clientId) {
+      return res.status(401).json({ error: 'Unauthorized: clientId required' });
+    }
+    
+    console.log(`[CLIENT-PROFILE] Fetching profile for clientId: ${clientId}`);
+    
+    const clientDoc = await firestore.collection('clients').doc(clientId).get();
+    
+    if (!clientDoc.exists) {
+      console.warn(`[CLIENT-PROFILE] Client not found: ${clientId}`);
+      return res.status(404).json({ error: 'Client not found' });
+    }
+    
+    const clientData = clientDoc.data();
+    
+    // Return only safe client data (never internal IDs, only public keys)
+    res.json({
+      id: clientId,
+      agentName: clientData.agentName || 'Support Assistant',
+      primaryColor: clientData.primaryColor || '#06b6d4',
+      logoURL: clientData.logoURL || null,
+      position: clientData.position || 'bottom-right',
+      publicWidgetKey: clientData.publicWidgetKey || null,
+    });
+    
+  } catch (error) {
+    console.error('[CLIENT-PROFILE] Error:', error);
+    res.status(500).json({ error: 'Failed to fetch client profile' });
+  }
 });
 
 /**

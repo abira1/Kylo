@@ -112,6 +112,8 @@ export function Embed() {
   const [botName, setBotName] = useState('Support Assistant');
   const [welcomeMsg, setWelcomeMsg] = useState('Hi there! How can I help you today?');
   const [primaryColor, setPrimaryColor] = useState('#06b6d4');
+  const [publicWidgetKey, setPublicWidgetKey] = useState<string>('');
+  const [publicKeyLoading, setPublicKeyLoading] = useState(true);
   
   // Conversation ID for localStorage key
   const [conversationId] = useState(() => `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
@@ -136,6 +138,7 @@ export function Embed() {
   const [leadSaved, setLeadSaved] = useState(false);
   
   const demoClientId = 'gxx8SK6WQHfd9xZ2HOLUW3PDFGE3';
+  const demoPublicKey = 'pk_live_demo_d4f2k9xq1m4r7';
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -152,6 +155,52 @@ export function Embed() {
     subscribe,
     []
   );
+
+  // Load public widget key on mount or when user changes
+  useEffect(() => {
+    const loadPublicKey = async () => {
+      try {
+        setPublicKeyLoading(true);
+        const clientId = user?.uid || demoClientId;
+        
+        if (clientId === demoClientId) {
+          setPublicWidgetKey(demoPublicKey);
+          console.log('[EMBED] Using demo public key');
+          return;
+        }
+        
+        // Fetch the user's client profile to get their publicWidgetKey
+        const response = await fetch(`/api/client-profile`, {
+          headers: {
+            'Authorization': `Bearer ${user?.uid}`,
+          }
+        });
+        
+        if (response.ok) {
+          const clientProfile = await response.json();
+          if (clientProfile.publicWidgetKey) {
+            setPublicWidgetKey(clientProfile.publicWidgetKey);
+            console.log('[EMBED] Public widget key loaded:', clientProfile.publicWidgetKey);
+          } else {
+            console.warn('[EMBED] No publicWidgetKey in client profile, using demo');
+            setPublicWidgetKey(demoPublicKey);
+          }
+        } else {
+          console.warn('[EMBED] Failed to fetch client profile, using demo');
+          setPublicWidgetKey(demoPublicKey);
+        }
+      } catch (error) {
+        console.error('[EMBED] Error loading public key:', error);
+        setPublicWidgetKey(demoPublicKey);
+      } finally {
+        setPublicKeyLoading(false);
+      }
+    };
+    
+    if (user?.uid) {
+      loadPublicKey();
+    }
+  }, [user?.uid]);
 
   // Load messages from localStorage on mount
   useEffect(() => {
@@ -184,15 +233,18 @@ export function Embed() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  /**
+   * Generate the production-ready embed snippet
+   * Uses public key (never exposes internal clientId)
+   * Branding is fetched dynamically by the widget
+   */
   const embedCode = `<script>
-  window.KYLO_AI_CONFIG = {
-    botId: "${user?.uid || demoClientId}",
-    theme: "${primaryColor}",
-    position: "bottom-right",
-    title: "${botName}"
+  window.KYLO_CONFIG = {
+    publicKey: "${publicWidgetKey}",
+    position: "bottom-right"
   };
 </script>
-<script src="https://cdn.kylo-ai.com/widget.js" async></script>`;
+<script src="https://cdn.kylo.ae/widget.js" async></script>`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(embedCode);
@@ -837,20 +889,28 @@ export function Embed() {
               <Code className="text-emerald-500 dark:text-cyan-400" size={20} />
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">Installation Code</h2>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 font-medium">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 font-medium">
               Paste this snippet right before the closing{' '}
               <code className="bg-gray-100 dark:bg-navy-900 px-1.5 py-0.5 rounded-lg text-xs font-mono text-emerald-600 dark:text-cyan-400">
                 &lt;/body&gt;
               </code>{' '}
               tag on your website.
             </p>
+            <p className="text-xs text-gray-500 dark:text-gray-500 mb-4">
+              ✓ Secure public key • ✓ Auto-updating branding • ✓ No re-embedding needed
+            </p>
             <div className="relative group">
               <pre className="bg-navy-950 text-gray-300 p-5 rounded-2xl text-xs sm:text-sm overflow-x-auto font-mono shadow-inner border border-navy-800 leading-relaxed">
-                {embedCode}
+                {publicKeyLoading ? (
+                  <span className="text-gray-500">Loading public key...</span>
+                ) : (
+                  embedCode
+                )}
               </pre>
               <button
                 onClick={handleCopy}
-                className="absolute top-3 right-3 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-xl backdrop-blur-md transition-all text-white flex items-center gap-2 text-xs font-bold opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+                disabled={publicKeyLoading}
+                className="absolute top-3 right-3 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-xl backdrop-blur-md transition-all text-white flex items-center gap-2 text-xs font-bold opacity-100 sm:opacity-0 sm:group-hover:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed">
                 {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
                 {copied ? 'Copied!' : 'Copy Code'}
               </button>
