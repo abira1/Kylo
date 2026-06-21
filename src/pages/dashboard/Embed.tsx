@@ -70,6 +70,9 @@ export function Embed() {
   const [conversationId] = useState(() => `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [conversationContext, setConversationContext] = useState<ConversationContext>({});
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [leadSaved, setLeadSaved] = useState(false);
   
   const demoClientId = 'gxx8SK6WQHfd9xZ2HOLUW3PDFGE3';
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -146,77 +149,77 @@ export function Embed() {
   };
 
   /**
+   * Check if we have enough lead data to auto-save
+   */
+  const hasEnoughLeadData = (): boolean => {
+    const context = conversationContext;
+    // Need at least a name + one other field (email, phone, country, or businessType)
+    const hasName = context.fullName || context.name;
+    const hasContact = context.email || context.phone;
+    const hasDetails = context.country || context.businessType || context.nationality;
+    
+    return !!(hasName && (hasContact || hasDetails));
+  };
+
+  /**
+   * Auto-save lead to Firestore when enough data is collected
+   */
+  const autoSaveLead = async () => {
+    if (leadSaved || !hasEnoughLeadData()) {
+      return;
+    }
+
+    try {
+      const clientId = user?.uid || demoClientId;
+      
+      const leadData = {
+        conversationId,
+        messages: messages,
+        name: conversationContext.fullName || conversationContext.name || 'Unknown',
+        email: conversationContext.email || '',
+        phone: conversationContext.phone || '',
+        country: conversationContext.nationality || conversationContext.country || '',
+        businessType: conversationContext.businessType || '',
+        passportNumber: conversationContext.passportNumber || '',
+        dateOfBirth: conversationContext.dateOfBirth || '',
+        extractedData: conversationContext,
+        status: 'new',
+        source: conversationContext.passportNumber ? 'passport_upload' : 'chat',
+        notes: `Lead auto-captured. Extracted: ${Object.keys(conversationContext).filter(k => conversationContext[k]).join(', ')}`
+      };
+
+      const response = await fetch(`${API_BASE_URL}/api/leads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId, leadData }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setLeadSaved(true);
+        console.log('[LEAD] Auto-saved:', data.leadId);
+        
+        // Show subtle notification
+        setMessages((prev) => [...prev, {
+          id: `auto_save_${Date.now()}`,
+          text: `✓ Your information has been saved to our system (Reference: ${data.leadId?.slice(0, 8)}...)`,
+          isBot: true,
+        }]);
+        
+        return true;
+      }
+    } catch (error) {
+      console.error('[LEAD] Auto-save error:', error);
+    }
+    return false;
+  };
+
+  /**
    * Main conversation handler - sends to Claude, gets smart response
    */
   const handleSendMessage = async (userInput?: string) => {
     const messageToSend = userInput || inputValue;
     if (!messageToSend.trim()) return;
-
-    // Check if user is confirming extracted data from passport upload
-    const isConfirmingExtraction = 
-      (messageToSend.includes('Yes') || messageToSend.includes('looks good')) &&
-      conversationContext.fullName; // Has extracted passport data
-
-    // If confirming extracted data, save the lead immediately
-    if (isConfirmingExtraction) {
-      console.log('[LEAD] Auto-saving lead from extracted passport data...');
-      const clientId = user?.uid || demoClientId;
-      
-      try {
-        // Prepare lead data from extracted information
-        const leadData = {
-          conversationId,
-          messages: messages,
-          name: conversationContext.fullName || conversationContext.name || 'Unknown',
-          email: conversationContext.email || '',
-          phone: conversationContext.phone || '',
-          country: conversationContext.nationality || conversationContext.country || '',
-          businessType: conversationContext.businessType || '',
-          passportNumber: conversationContext.passportNumber || '',
-          dateOfBirth: conversationContext.dateOfBirth || '',
-          extractedData: conversationContext,
-          status: 'new',
-          source: 'passport_upload',
-          notes: `Lead captured from passport upload. Extracted via Claude vision API.`
-        };
-
-        // Save to Firestore
-        const response = await fetch(`${API_BASE_URL}/api/leads`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            clientId,
-            leadData
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log('[LEAD] Auto-saved successfully:', data.leadId);
-          
-          // Add confirmation message to chat
-          setMessages((prev) => [...prev, {
-            id: Date.now().toString(),
-            text: messageToSend,
-            isBot: false
-          }]);
-          
-          setMessages((prev) => [...prev, {
-            id: (Date.now() + 1).toString(),
-            text: `✓ Perfect! I've saved your information as a lead in our system. We'll review your application and get back to you shortly.\n\nYour reference ID is: ${data.leadId}`,
-            isBot: true,
-          }]);
-          
-          setInputValue('');
-          return;
-        }
-      } catch (error) {
-        console.error('[LEAD] Auto-save failed:', error);
-        // Continue with normal flow if save fails
-      }
-    }
 
     // Add user message
     const newUserMsg: Message = {
@@ -284,12 +287,21 @@ export function Embed() {
       setMessages((prev) => [...prev, botMsg]);
 
       // Update conversation context with extracted info
+      // Try to parse user input for personal info
+      updateContextFromInput(messageToSend);
+
+      // Update conversation context with bot response info
       setConversationContext(prev => ({
         ...prev,
         lastBotResponse: responseText,
         lastOptions: options,
         lastUpdateTime: new Date().toISOString()
       }));
+
+      // Auto-save if we have enough data
+      setTimeout(() => {
+        autoSaveLead();
+      }, 500);
 
     } catch (error) {
       setIsTyping(false);
@@ -305,6 +317,52 @@ export function Embed() {
           isBot: true,
         }
       ]);
+    }
+  };
+
+  /**
+   * Extract personal info from user input
+   */
+  const updateContextFromInput = (input: string) => {
+    const lowerInput = input.toLowerCase();
+    
+    // Email pattern
+    const emailMatch = input.match(/[\w\.-]+@[\w\.-]+\.\w+/);
+    if (emailMatch) {
+      setConversationContext(prev => ({
+        ...prev,
+        email: emailMatch[0]
+      }));
+    }
+
+    // Phone pattern (simple UAE/international)
+    const phoneMatch = input.match(/(\+?971|0)?[\d\s\-]{7,}/);
+    if (phoneMatch) {
+      setConversationContext(prev => ({
+        ...prev,
+        phone: phoneMatch[0].trim()
+      }));
+    }
+
+    // Country detection
+    const countries = ['UAE', 'Saudi', 'Egypt', 'India', 'Pakistan', 'UK', 'US', 'Canada', 'Australia'];
+    const detectedCountry = countries.find(c => lowerInput.includes(c.toLowerCase()));
+    if (detectedCountry) {
+      setConversationContext(prev => ({
+        ...prev,
+        country: detectedCountry
+      }));
+    }
+
+    // Name detection - if first message and looks like a name
+    if (input.length < 50 && !input.includes('@') && !input.includes('+')) {
+      const words = input.split(' ');
+      if (words.length <= 3 && words.every(w => /^[a-zA-Z\s'-]+$/.test(w))) {
+        setConversationContext(prev => ({
+          ...prev,
+          name: input.trim()
+        }));
+      }
     }
   };
 
@@ -405,6 +463,20 @@ export function Embed() {
 
       reader.onload = async (e) => {
         const fileData = e.target?.result as string;
+        
+        // Store image URL for preview
+        setUploadedImageUrl(fileData);
+        setIsScanning(true);
+
+        // Show image with scanning animation
+        const imagePreviewMsg: Message = {
+          id: `image_${Date.now()}`,
+          text: `📸 Scanning your document...`,
+          isBot: true,
+          hasDocument: true
+        };
+        setMessages(prev => [...prev, imagePreviewMsg]);
+
         const base64Data = fileData.split(',')[1]; // Remove data URL prefix
 
         // Always send as passport for now - let Claude analyze what's actually in the image
@@ -423,12 +495,15 @@ export function Embed() {
           }),
         });
 
+        setIsScanning(false);
+
         if (response.ok) {
           const data = await response.json();
           console.log('[UPLOAD] Success:', data);
           
           // Check if Claude extracted any data
           if (data.extractedData && Object.keys(data.extractedData).length > 0) {
+            // Update context with all extracted data
             setConversationContext(prev => ({
               ...prev,
               ...data.extractedData
@@ -448,33 +523,54 @@ export function Embed() {
               .join('\n');
 
             if (formattedData.trim()) {
-              // Show extracted data confirmation with preview
-              const confirmMsg: Message = {
-                id: (Date.now() + 2).toString(),
-                text: `✓ Perfect! I've successfully extracted the following information from your document:\n\n${formattedData}\n\nPlease review the details. Is everything correct?`,
-                isBot: true,
-                options: ['Yes, looks good!', 'No, let me correct']
-              };
-              setMessages(prev => [...prev, confirmMsg]);
+              // Update the scanning message with extracted data
+              setMessages(prev => [
+                ...prev.slice(0, -1), // Remove the scanning message
+                {
+                  id: `extraction_${Date.now()}`,
+                  text: `✓ Perfect! I've successfully extracted the following information from your document:\n\n${formattedData}\n\nPlease review the details. Is everything correct?`,
+                  isBot: true,
+                  options: ['Yes, looks good!', 'No, let me correct']
+                }
+              ]);
+
+              // Auto-save after extraction with data confirmation
+              setTimeout(() => {
+                autoSaveLead();
+              }, 1000);
             } else {
-              // Data was extracted but empty after filtering - shouldn't happen
-              const retryMsg: Message = {
-                id: (Date.now() + 2).toString(),
-                text: `I received your document, but I wasn't able to extract readable information from the image. This might be due to image quality or lighting.\n\nPlease try:\n• Upload a clearer photo with better lighting\n• Ensure the entire document is visible\n• Use good contrast (not blurry or at an angle)`,
-                isBot: true,
-                options: ['Upload another image', 'Fill manually instead']
-              };
-              setMessages(prev => [...prev, retryMsg]);
+              // Data was extracted but empty after filtering
+              setMessages(prev => [
+                ...prev.slice(0, -1),
+                {
+                  id: `retry_${Date.now()}`,
+                  text: `I received your document, but I wasn't able to extract readable information from the image. This might be due to image quality or lighting.\n\nPlease try:\n• Upload a clearer photo with better lighting\n• Ensure the entire document is visible\n• Use good contrast (not blurry or at an angle)`,
+                  isBot: true,
+                  options: ['Upload another image', 'Fill manually instead']
+                }
+              ]);
             }
           } else {
-            // No data extracted - ask for manual entry
-            const fallbackMsg: Message = {
-              id: (Date.now() + 2).toString(),
-              text: `I've received your document, but I wasn't able to automatically extract the information. This might be because:\n• The image quality is too low\n• The document isn't fully visible\n• The text is unclear or at an angle\n\n**Let's fill in your information manually instead.** To start, what is your full name?`,
-              isBot: true,
-            };
-            setMessages(prev => [...prev, fallbackMsg]);
+            // No data extracted
+            setMessages(prev => [
+              ...prev.slice(0, -1),
+              {
+                id: `fallback_${Date.now()}`,
+                text: `I've received your document, but I wasn't able to automatically extract the information. This might be because:\n• The image quality is too low\n• The document isn't fully visible\n• The text is unclear or at an angle\n\n**Let's fill in your information manually instead.** To start, what is your full name?`,
+                isBot: true,
+              }
+            ]);
           }
+        } else {
+          setMessages(prev => [
+            ...prev.slice(0, -1),
+            {
+              id: `error_${Date.now()}`,
+              text: `Sorry, there was an issue processing your document. Please try uploading again or fill in your information manually.`,
+              isBot: true,
+              options: ['Upload another image', 'Fill manually instead']
+            }
+          ]);
         }
       };
 
@@ -482,6 +578,7 @@ export function Embed() {
     } catch (error) {
       console.error('[UPLOAD] Error:', error);
       setApiError('File upload failed');
+      setIsScanning(false);
     }
   };
 
@@ -499,6 +596,8 @@ export function Embed() {
     ]);
     setInputValue('');
     setConversationContext({});
+    setUploadedImageUrl(null);
+    setLeadSaved(false);
     setApiError(null);
   };
 
@@ -673,15 +772,47 @@ export function Embed() {
                 {messages.map((msg) =>
                   <div key={msg.id}>
                     <div className={`flex ${msg.isBot ? 'justify-start' : 'justify-end'}`}>
-                      <div
-                        className={`max-w-[85%] p-3 text-sm shadow-sm whitespace-pre-wrap break-words ${
-                          msg.isBot
-                            ? 'bg-white dark:bg-navy-800 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm border border-gray-100 dark:border-navy-700'
-                            : 'text-white rounded-2xl rounded-tr-sm'
-                        }`}
-                        style={!msg.isBot ? { backgroundColor: primaryColor } : {}}>
-                        {msg.text}
-                      </div>
+                      {msg.hasDocument && uploadedImageUrl ? (
+                        // Image preview with scanning animation
+                        <div className="max-w-[85%] p-0 overflow-hidden rounded-2xl border-2 border-gray-200 dark:border-navy-700 shadow-lg relative">
+                          <img 
+                            src={uploadedImageUrl} 
+                            alt="Uploaded document" 
+                            className="w-full h-auto max-h-64 object-cover"
+                          />
+                          {isScanning && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse" 
+                              style={{
+                                animation: 'scan 1.5s infinite'
+                              }}>
+                              <style>{`
+                                @keyframes scan {
+                                  0% { transform: translateX(-100%); }
+                                  100% { transform: translateX(100%); }
+                                }
+                              `}</style>
+                            </div>
+                          )}
+                          {isScanning && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                              <div className="flex flex-col items-center gap-2">
+                                <div className="w-8 h-8 border-3 border-white/50 border-t-white rounded-full animate-spin"></div>
+                                <span className="text-white text-xs font-semibold bg-black/40 px-3 py-1 rounded-full backdrop-blur">Scanning...</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div
+                          className={`max-w-[85%] p-3 text-sm shadow-sm whitespace-pre-wrap break-words ${
+                            msg.isBot
+                              ? 'bg-white dark:bg-navy-800 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm border border-gray-100 dark:border-navy-700'
+                              : 'text-white rounded-2xl rounded-tr-sm'
+                          }`}
+                          style={!msg.isBot ? { backgroundColor: primaryColor } : {}}>
+                          {msg.text}
+                        </div>
+                      )}
                     </div>
                     
                     {/* Show options if available */}
