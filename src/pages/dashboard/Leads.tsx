@@ -134,27 +134,30 @@ export function Leads() {
     await fetchLeads(true);
   };
 
-  // Filter leads by search/status (show ALL leads, regardless of completeness)
+  // Filter leads - apply search/status ONLY if user explicitly types/selects
+  // By default, show ALL leads
   const filteredLeads = leads.filter(lead => {
-    // Debug: Log why leads are filtered
-    const matchesSearch = 
-      lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.email.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
-    
-    const passes = matchesSearch && matchesStatus;
-    if (!passes) {
-      if (!matchesSearch) {
-        console.log('[LEADS FILTER] Search mismatch:', { name: lead.name, email: lead.email, searchTerm });
-      }
-      if (!matchesStatus) {
-        console.log('[LEADS FILTER] Status mismatch:', { status: lead.status, filter: statusFilter });
-      }
+    // If no search term AND status is 'all', show ALL leads
+    if (!searchTerm.trim() && statusFilter === 'all') {
+      return true;
     }
-    return passes;
+
+    // Apply search filter if user typed something
+    let matchesSearch = true;
+    if (searchTerm.trim()) {
+      matchesSearch = 
+        (lead.name && lead.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (lead.email && lead.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (lead.phone && lead.phone.toLowerCase().includes(searchTerm.toLowerCase()));
+    }
+
+    // Apply status filter if user selected something
+    const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
   });
-  console.log('[LEADS] Filtered:', filteredLeads.length, 'from', leads.length, '(search:', searchTerm, ', status:', statusFilter, ')');
+
+  console.log('[LEADS] Total:', leads.length, '| Shown:', filteredLeads.length, '| Search:', searchTerm, '| Status:', statusFilter);
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -325,7 +328,9 @@ export function Leads() {
                 </div>
               ) : (
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                  {leads.length > 0 ? 'All leads are currently hidden by filters' : 'Leads will appear here when captured from chats'}
+                  {leads.length > 0 
+                    ? '✓ Filters active - no matches found. Try clearing filters' 
+                    : '📭 No leads yet - start a chat on your website to capture leads'}
                 </p>
               )}
             </div>
