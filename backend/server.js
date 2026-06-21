@@ -2,9 +2,28 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+
+// ============================================================
+// INITIALIZE FIREBASE ADMIN SDK FIRST (before any services!)
+// ============================================================
+const admin = require('firebase-admin');
+
+const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || './kylo-firebase-key.json';
+const serviceAccount = require(path.resolve(serviceAccountPath));
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: process.env.FIREBASE_DATABASE_URL,
+});
+
+console.log('[STARTUP] Firebase Admin SDK initialized');
 
 // Import Anthropic SDK - use default export directly
 const Anthropic = require('@anthropic-ai/sdk');
+
+// Import WhatsApp routes (NOW safe to import after Firebase init)
+const whatsappRoutes = require('./routes/whatsappRoutes');
 
 console.log('[STARTUP] Anthropic imported');
 console.log('[STARTUP] Creating client...');
@@ -86,6 +105,9 @@ app.get('/api/health', (req, res) => {
     claudeApiConfigured: !!process.env.CLAUDE_API_KEY,
   });
 });
+
+// Register WhatsApp routes
+app.use('/api/whatsapp', whatsappRoutes);
 
 app.listen(PORT, () => {
   console.log(`\n🚀 Server running on port ${PORT}\n`);

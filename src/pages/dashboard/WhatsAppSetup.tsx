@@ -14,7 +14,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useRealtimeData } from '../../hooks/useData';
 import { subscribeToWhatsAppConfig, WhatsAppConfig } from '../../services/dataService';
 
-export function WhatsApp() {
+export function WhatsAppSetup() {
   const { user, loading: authLoading } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [isTesting, setIsTesting] = useState(false);

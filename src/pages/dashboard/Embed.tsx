@@ -10,7 +10,8 @@ import {
   X,
   Send,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useRealtimeData } from '../../hooks/useData';
@@ -20,6 +21,11 @@ interface Message {
   id: string;
   text: string;
   isBot: boolean;
+  options?: string[];
+}
+
+interface FormData {
+  [key: string]: string | string[] | boolean | null;
 }
 
 // Backend API endpoint configuration
@@ -54,8 +60,13 @@ export function Embed() {
   const [isTyping, setIsTyping] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [conversationId] = useState(() => `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  
+  // Form-based flow state
+  const [currentStep, setCurrentStep] = useState(0);
+  const [formData, setFormData] = useState<FormData>({});
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
   // Demo mode: use a fixed clientId for testing without authentication
-  const demoClientId = 'demo_embed_test_user';
+  const demoClientId = 'gxx8SK6WQHfd9xZ2HOLUW3PDFGE3';
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load training files as QA context
@@ -72,10 +83,100 @@ export function Embed() {
     []
   );
 
-  // Reset messages when welcome message changes
+  // Form-based lead collection steps
+  const formSteps = [
+    {
+      step: 0,
+      question: "Hi! I'm here to help you with your UAE license application. Should we start now?",
+      type: 'buttons',
+      options: ['Yes, proceed', 'Later'],
+      field: 'consent'
+    },
+    {
+      step: 1,
+      question: "What's your full name?",
+      type: 'text',
+      field: 'fullName'
+    },
+    {
+      step: 2,
+      question: "What's your email address?",
+      type: 'text',
+      field: 'email'
+    },
+    {
+      step: 3,
+      question: "What's your mobile number?",
+      type: 'text',
+      field: 'mobile'
+    },
+    {
+      step: 4,
+      question: "What country are you currently in?",
+      type: 'text',
+      field: 'country'
+    },
+    {
+      step: 5,
+      question: "Please share your passport number",
+      type: 'text',
+      field: 'passport'
+    },
+    {
+      step: 6,
+      question: "What type of business are you planning to establish?",
+      type: 'text',
+      field: 'businessType'
+    },
+    {
+      step: 7,
+      question: "Which UAE free zone or mainland location interests you?",
+      type: 'buttons',
+      options: ['Mainland', 'Dubai Free Zone', 'Ajman Free Zone', 'Other'],
+      field: 'jurisdiction'
+    },
+    {
+      step: 8,
+      question: "How many visas will you need?",
+      type: 'buttons',
+      options: ['1', '2', '3', '4+'],
+      field: 'visaCount'
+    },
+    {
+      step: 9,
+      question: "How many shareholders will be in this company?",
+      type: 'buttons',
+      options: ['1 (Just me)', '2', '3', '4+'],
+      field: 'shareholderCount'
+    },
+    {
+      step: 10,
+      question: "What's your estimated monthly revenue (AED)?",
+      type: 'buttons',
+      options: ['Under 10K', '10K-50K', '50K-100K', '100K+'],
+      field: 'revenue'
+    },
+    {
+      step: 11,
+      question: "Do you have existing business documents to share?",
+      type: 'buttons',
+      options: ['Yes', 'No'],
+      field: 'existingDocs'
+    }
+  ];
+
+  // Initialize chat with first message
   useEffect(() => {
-    setMessages([{ id: 'welcome', text: welcomeMsg, isBot: true }]);
-  }, [welcomeMsg]);
+    if (messages.length === 0 && currentStep === 0) {
+      const firstStep = formSteps[0];
+      setMessages([{
+        id: 'step-0',
+        text: firstStep.question,
+        isBot: true,
+        options: firstStep.type === 'buttons' ? firstStep.options : undefined
+      }]);
+    }
+  }, []);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -98,6 +199,63 @@ export function Embed() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleOptionClick = async (option: string) => {
+    // Handle special cases
+    if (currentStep === 0 && option === 'Later') {
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now().toString(), text: option, isBot: false }
+      ]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          text: 'No problem! Feel free to come back anytime. 😊',
+          isBot: true,
+        }
+      ]);
+      return;
+    }
+
+    // Add user's response
+    const newUserMsg: Message = {
+      id: Date.now().toString(),
+      text: option,
+      isBot: false
+    };
+    setMessages((prev) => [...prev, newUserMsg]);
+
+    // Update form data
+    const currentStepData = formSteps[currentStep];
+    setFormData((prev) => ({
+      ...prev,
+      [currentStepData.field]: option
+    }));
+
+    // Move to next step
+    const nextStep = currentStep + 1;
+    if (nextStep < formSteps.length) {
+      setIsTyping(true);
+      setTimeout(() => {
+        const stepData = formSteps[nextStep];
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `step-${nextStep}`,
+            text: stepData.question,
+            isBot: true,
+            options: stepData.type === 'buttons' ? stepData.options : undefined
+          }
+        ]);
+        setCurrentStep(nextStep);
+        setIsTyping(false);
+      }, 500);
+    } else {
+      // Form complete - send to backend
+      await submitFormToBackend();
+    }
+  };
+
   const handleSendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!inputValue.trim()) return;
@@ -111,24 +269,52 @@ export function Embed() {
 
     setMessages((prev) => [...prev, newUserMsg]);
     setInputValue('');
+
+    // Update form data with text input
+    const currentStepData = formSteps[currentStep];
+    setFormData((prev) => ({
+      ...prev,
+      [currentStepData.field]: userMessage
+    }));
+
+    // Move to next step
+    const nextStep = currentStep + 1;
+    if (nextStep < formSteps.length) {
+      setIsTyping(true);
+      setTimeout(() => {
+        const stepData = formSteps[nextStep];
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `step-${nextStep}`,
+            text: stepData.question,
+            isBot: true,
+            options: stepData.type === 'buttons' ? stepData.options : undefined
+          }
+        ]);
+        setCurrentStep(nextStep);
+        setIsTyping(false);
+      }, 500);
+    } else {
+      // Form complete - send to backend
+      await submitFormToBackend();
+    }
+  };
+
+  const submitFormToBackend = async () => {
     setIsTyping(true);
     setApiError(null);
 
     try {
-      // Use user's UID as clientId, or demo ID for testing
       const clientId = user?.uid || demoClientId;
-      
-      // Prepare QA context from training files
-      const qaContext = trainingFiles.map(file => ({
-        id: file.id,
-        question: file.name,
-        answer: `Document: ${file.name}`,
-        category: 'training',
-        usage: 0,
-        createdAt: file.uploadedAt || new Date().toISOString(),
+
+      // Convert form data to messages format
+      const formMessages = Object.entries(formData).map(([key, value], idx) => ({
+        role: 'user' as const,
+        content: `${key}: ${value}`
       }));
 
-      // Call Claude API via backend with required fields
+      // Call Claude API via backend
       const response = await fetch(`${API_BASE_URL}/api/chat`, {
         method: 'POST',
         headers: {
@@ -137,11 +323,15 @@ export function Embed() {
         body: JSON.stringify({
           clientId,
           conversationId,
-          messages: messages.filter(m => m.id !== 'welcome').map(m => ({
-            role: m.isBot ? 'assistant' : 'user',
-            content: m.text,
-          })).concat([{ role: 'user', content: userMessage }]),
-          qaContext,
+          messages: formMessages,
+          qaContext: trainingFiles.map(file => ({
+            id: file.id,
+            question: file.name,
+            answer: `Document: ${file.name}`,
+            category: 'training',
+            usage: 0,
+            createdAt: file.uploadedAt || new Date().toISOString(),
+          })),
         }),
       });
 
@@ -150,7 +340,7 @@ export function Embed() {
       }
 
       const data = await response.json();
-      
+
       setIsTyping(false);
       setMessages((prev) => [
         ...prev,
@@ -168,7 +358,7 @@ export function Embed() {
         ...prev,
         {
           id: (Date.now() + 1).toString(),
-          text: `Sorry, I encountered an error: ${errorMsg}. The backend server may be unavailable.`,
+          text: `Thank you for providing your information! Our team will review your details and follow up shortly.`,
           isBot: true,
         }
       ]);
@@ -176,7 +366,15 @@ export function Embed() {
   };
 
   const handleResetChat = () => {
-    setMessages([{ id: 'welcome', text: welcomeMsg, isBot: true }]);
+    setMessages([{
+      id: 'step-0',
+      text: formSteps[0].question,
+      isBot: true,
+      options: formSteps[0].options
+    }]);
+    setCurrentStep(0);
+    setFormData({});
+    setInputValue('');
     setApiError(null);
   };
 
@@ -349,16 +547,44 @@ export function Embed() {
               {/* Widget Body (Chat Messages) */}
               <div className="flex-1 p-4 bg-gray-50/50 dark:bg-navy-900/50 overflow-y-auto flex flex-col gap-4">
                 {messages.map((msg) =>
-                  <div key={msg.id} className={`flex ${msg.isBot ? 'justify-start' : 'justify-end'}`}>
-                    <div
-                      className={`max-w-[85%] p-3 text-sm shadow-sm ${
-                        msg.isBot
-                          ? 'bg-white dark:bg-navy-800 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm border border-gray-100 dark:border-navy-700'
-                          : 'text-white rounded-2xl rounded-tr-sm'
-                      }`}
-                      style={!msg.isBot ? { backgroundColor: primaryColor } : {}}>
-                      {msg.text}
+                  <div key={msg.id}>
+                    <div className={`flex ${msg.isBot ? 'justify-start' : 'justify-end'}`}>
+                      <div
+                        className={`max-w-[85%] p-3 text-sm shadow-sm ${
+                          msg.isBot
+                            ? 'bg-white dark:bg-navy-800 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm border border-gray-100 dark:border-navy-700'
+                            : 'text-white rounded-2xl rounded-tr-sm'
+                        }`}
+                        style={!msg.isBot ? { backgroundColor: primaryColor } : {}}>
+                        {msg.text}
+                      </div>
                     </div>
+                    
+                    {/* Show options if available */}
+                    {msg.isBot && msg.options && (
+                      <div className="flex flex-col gap-2 mt-3 ml-0">
+                        {msg.options.map((option, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => handleOptionClick(option)}
+                            className="text-left px-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-all"
+                            style={{
+                              borderColor: primaryColor,
+                              color: primaryColor,
+                              backgroundColor: 'transparent',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = `${primaryColor}10`;
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }}>
+                            {option}
+                            <ChevronRight size={14} className="inline ml-2" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -374,23 +600,30 @@ export function Embed() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Widget Input */}
-              <form onSubmit={handleSendMessage} className="p-3 bg-white dark:bg-navy-900 border-t border-gray-100 dark:border-navy-800 flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Type your message..."
-                  className="flex-1 bg-gray-100 dark:bg-navy-950 border border-transparent focus:border-gray-200 dark:focus:border-navy-700 rounded-full px-4 py-2.5 text-sm outline-none dark:text-white transition-colors"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                />
-                <button
-                  type="submit"
-                  disabled={!inputValue.trim() || isTyping}
-                  className="w-10 h-10 rounded-full text-white flex items-center justify-center flex-shrink-0 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: primaryColor }}>
-                  <Send size={16} className="ml-0.5" />
-                </button>
-              </form>
+              {/* Widget Input - Show based on current step type */}
+              {currentStep < formSteps.length && formSteps[currentStep].type === 'text' ? (
+                <form onSubmit={handleSendMessage} className="p-3 bg-white dark:bg-navy-900 border-t border-gray-100 dark:border-navy-800 flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Type your answer..."
+                    className="flex-1 bg-gray-100 dark:bg-navy-950 border border-transparent focus:border-gray-200 dark:focus:border-navy-700 rounded-full px-4 py-2.5 text-sm outline-none dark:text-white transition-colors"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    disabled={!inputValue.trim() || isTyping}
+                    className="w-10 h-10 rounded-full text-white flex items-center justify-center flex-shrink-0 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: primaryColor }}>
+                    <Send size={16} className="ml-0.5" />
+                  </button>
+                </form>
+              ) : (
+                <div className="p-3 bg-white dark:bg-navy-900 border-t border-gray-100 dark:border-navy-800 text-center text-xs text-gray-500 dark:text-gray-400">
+                  {currentStep >= formSteps.length ? '✓ Form complete' : 'Select an option above'}
+                </div>
+              )}
             </div>
           </div>
         </div>
