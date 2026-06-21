@@ -203,7 +203,13 @@
     frame.id = 'kylo-chat-frame';
     frame.setAttribute('allow', 'microphone; camera');
     frame.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-presentation');
-    frame.src = `${apiBase}/embed.html?publicKey=${encodeURIComponent(publicKey)}&agent=${encodeURIComponent(branding?.agentName || 'KYLO')}`;
+    const iframeSrc = `${apiBase}/embed.html?publicKey=${encodeURIComponent(publicKey)}&agent=${encodeURIComponent(branding?.agentName || 'KYLO')}`;
+    frame.src = iframeSrc;
+    
+    // Debug logging
+    log(`Setting iframe src to: ${iframeSrc}`);
+    log(`iframe.src after assignment: ${frame.src}`);
+    
     return frame;
   }
 
@@ -246,6 +252,12 @@
    */
   function toggleWidget() {
     isOpen = !isOpen;
+    log(`toggleWidget() called - isOpen is now: ${isOpen}`);
+    log(`iframe element: ${iframe ? 'exists' : 'missing'}`);
+    if (iframe) {
+      log(`iframe.src: ${iframe.src}`);
+      log(`iframe is attached to DOM: ${document.body.contains(iframe)}`);
+    }
 
     if (launcher) {
       launcher.classList.toggle('open', isOpen);
