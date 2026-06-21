@@ -1215,12 +1215,12 @@ app.mount('#app')
                     
                     {/* Show options if available */}
                     {msg.isBot && msg.options && (
-                      <div className="flex flex-col gap-2 mt-3 ml-0">
+                      <div className="flex flex-col gap-1.5 mt-2 ml-0">
                         {msg.options.map((option, idx) => (
                           <button
                             key={idx}
                             onClick={() => handleOptionClick(option)}
-                            className="text-left px-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-all"
+                            className="text-left px-3 py-1.5 rounded-lg text-xs font-medium border-2 transition-all"
                             style={{
                               borderColor: primaryColor,
                               color: primaryColor,
@@ -1233,7 +1233,7 @@ app.mount('#app')
                               e.currentTarget.style.backgroundColor = 'transparent';
                             }}>
                             <span className="inline">{parseMessageText(option)}</span>
-                            <ChevronRight size={14} className="inline ml-2" />
+                            <ChevronRight size={12} className="inline ml-1" />
                           </button>
                         ))}
                       </div>
