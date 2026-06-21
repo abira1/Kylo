@@ -14,7 +14,8 @@ import {
   ChevronRight,
   Upload,
   Download,
-  File
+  File,
+  BookOpen
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useRealtimeData } from '../../hooks/useData';
@@ -914,6 +915,189 @@ export function Embed() {
                 {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
                 {copied ? 'Copied!' : 'Copy Code'}
               </button>
+            </div>
+          </div>
+
+          {/* Setup Instructions */}
+          <div className="bento-card">
+            <div className="flex items-center gap-3 mb-5 border-b border-gray-100 dark:border-navy-700 pb-4">
+              <BookOpen className="text-emerald-500 dark:text-cyan-400" size={20} />
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Setup Instructions</h2>
+            </div>
+
+            <div className="space-y-6">
+              {/* Quick Start */}
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-emerald-500 dark:bg-cyan-400 text-white text-xs font-bold flex items-center justify-center">1</span>
+                  Quick Start (HTML)
+                </h3>
+                <div className="bg-gray-50 dark:bg-navy-950 p-4 rounded-xl border border-gray-200 dark:border-navy-700">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    Paste the code from the Installation Code section right before the <code className="bg-gray-200 dark:bg-navy-800 px-2 py-1 rounded text-xs font-mono">&lt;/body&gt;</code> tag on your website.
+                  </p>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mt-3">
+                    <p className="text-xs text-blue-900 dark:text-blue-300"><strong>💡 Tip:</strong> The widget loads asynchronously, so your page won't be affected by load times.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* React */}
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-emerald-500 dark:bg-cyan-400 text-white text-xs font-bold flex items-center justify-center">2</span>
+                  React App
+                </h3>
+                <div className="bg-gray-50 dark:bg-navy-950 p-4 rounded-xl border border-gray-200 dark:border-navy-700">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    Add to your <code className="bg-gray-200 dark:bg-navy-800 px-2 py-1 rounded text-xs font-mono">public/index.html</code>:
+                  </p>
+                  <pre className="bg-navy-950 text-cyan-400 p-3 rounded-lg text-xs overflow-x-auto font-mono leading-relaxed">
+&lt;head&gt;
+  &lt;!-- Your other meta tags --&gt;
+  &lt;script&gt;
+    window.KYLO_CONFIG = {'{'}
+      publicKey: "YOUR_PUBLIC_KEY_HERE",
+      position: "bottom-right"
+    {'}'};
+  &lt;/script&gt;
+  &lt;script src="https://cdn.kylo.ae/widget.js" async&gt;&lt;/script&gt;
+&lt;/head&gt;
+                  </pre>
+                </div>
+              </div>
+
+              {/* Next.js */}
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-emerald-500 dark:bg-cyan-400 text-white text-xs font-bold flex items-center justify-center">3</span>
+                  Next.js App
+                </h3>
+                <div className="bg-gray-50 dark:bg-navy-950 p-4 rounded-xl border border-gray-200 dark:border-navy-700">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    Add to your <code className="bg-gray-200 dark:bg-navy-800 px-2 py-1 rounded text-xs font-mono">app/layout.tsx</code>:
+                  </p>
+                  <pre className="bg-navy-950 text-cyan-400 p-3 rounded-lg text-xs overflow-x-auto font-mono leading-relaxed">
+import Script from 'next/script';
+
+export default function RootLayout() {'{'}
+  return (
+    &lt;html&gt;
+      &lt;body&gt;
+        &lt;Script strategy="afterInteractive"&gt;
+          {`{window.KYLO_CONFIG = {
+            publicKey: "YOUR_PUBLIC_KEY_HERE",
+            position: "bottom-right"
+          };}`}
+        &lt;/Script&gt;
+        &lt;Script 
+          src="https://cdn.kylo.ae/widget.js" 
+          strategy="afterInteractive"
+        /&gt;
+      &lt;/body&gt;
+    &lt;/html&gt;
+  )
+{'}'}
+                  </pre>
+                </div>
+              </div>
+
+              {/* Vue */}
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-emerald-500 dark:bg-cyan-400 text-white text-xs font-bold flex items-center justify-center">4</span>
+                  Vue.js
+                </h3>
+                <div className="bg-gray-50 dark:bg-navy-950 p-4 rounded-xl border border-gray-200 dark:border-navy-700">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    Add to your <code className="bg-gray-200 dark:bg-navy-800 px-2 py-1 rounded text-xs font-mono">main.js</code>:
+                  </p>
+                  <pre className="bg-navy-950 text-cyan-400 p-3 rounded-lg text-xs overflow-x-auto font-mono leading-relaxed">
+import {'{'}createApp{'}'} from 'vue'
+import App from './App.vue'
+
+const app = createApp(App)
+
+window.KYLO_CONFIG = {'{'}
+  publicKey: "YOUR_PUBLIC_KEY_HERE",
+  position: "bottom-right"
+{'}'};
+
+const script = document.createElement('script');
+script.src = "https://cdn.kylo.ae/widget.js";
+script.async = true;
+document.head.appendChild(script);
+
+app.mount('#app')
+                  </pre>
+                </div>
+              </div>
+
+              {/* Troubleshooting */}
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-red-500 dark:bg-red-400 text-white text-xs font-bold flex items-center justify-center">!</span>
+                  Troubleshooting
+                </h3>
+                <div className="space-y-3">
+                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                    <p className="text-xs font-bold text-amber-900 dark:text-amber-300 mb-1">Widget not showing?</p>
+                    <ul className="text-xs text-amber-800 dark:text-amber-200 space-y-1 ml-3">
+                      <li>✓ Check browser console (F12) for JavaScript errors</li>
+                      <li>✓ Verify script tag is before closing &lt;/body&gt;</li>
+                      <li>✓ Ensure KYLO_CONFIG is defined before loading widget.js</li>
+                      <li>✓ Check CDN is accessible: <a href="https://cdn.kylo.ae/widget.js" target="_blank" rel="noopener noreferrer" className="underline text-blue-600">cdn.kylo.ae/widget.js</a></li>
+                    </ul>
+                  </div>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                    <p className="text-xs font-bold text-blue-900 dark:text-blue-300 mb-1">Branding not updating?</p>
+                    <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1 ml-3">
+                      <li>✓ Widget automatically fetches branding from server every 5 minutes</li>
+                      <li>✓ Clear browser cache (Ctrl+Shift+Del) to force refresh</li>
+                      <li>✓ Changes to bot name/color apply within 5 minutes</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Key Features */}
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white mb-3">✨ Features Included</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="text-xs text-gray-700 dark:text-gray-300 flex items-start gap-2">
+                    <span className="text-emerald-500 dark:text-cyan-400 font-bold mt-0.5">→</span>
+                    <span><strong>No Re-embedding:</strong> Update branding anytime, no code changes needed</span>
+                  </div>
+                  <div className="text-xs text-gray-700 dark:text-gray-300 flex items-start gap-2">
+                    <span className="text-emerald-500 dark:text-cyan-400 font-bold mt-0.5">→</span>
+                    <span><strong>Lead Capture:</strong> Automatically collects visitor info & contact details</span>
+                  </div>
+                  <div className="text-xs text-gray-700 dark:text-gray-300 flex items-start gap-2">
+                    <span className="text-emerald-500 dark:text-cyan-400 font-bold mt-0.5">→</span>
+                    <span><strong>AI Powered:</strong> Answers based on your uploaded documents</span>
+                  </div>
+                  <div className="text-xs text-gray-700 dark:text-gray-300 flex items-start gap-2">
+                    <span className="text-emerald-500 dark:text-cyan-400 font-bold mt-0.5">→</span>
+                    <span><strong>Secure:</strong> Encrypted communication, no sensitive data exposed</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Support */}
+              <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4">
+                <p className="text-sm font-bold text-emerald-900 dark:text-emerald-300 mb-2">Need Help?</p>
+                <p className="text-xs text-emerald-800 dark:text-emerald-200 mb-3">
+                  Our team is here to help with integration. Contact us through the chat widget above or check the API documentation.
+                </p>
+                <div className="flex gap-2 flex-wrap">
+                  <button className="text-xs px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors">
+                    📧 Email Support
+                  </button>
+                  <button className="text-xs px-3 py-2 bg-gray-200 dark:bg-navy-700 hover:bg-gray-300 dark:hover:bg-navy-600 text-gray-900 dark:text-white rounded-lg font-semibold transition-colors">
+                    📚 View Docs
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
