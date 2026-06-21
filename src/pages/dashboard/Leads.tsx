@@ -202,6 +202,16 @@ export function Leads() {
     return Math.min(score, 100);
   };
 
+  const getLeadDataIndicators = (lead: Lead) => {
+    const indicators = [];
+    if (lead.name) indicators.push('📝');
+    if (lead.phone) indicators.push('📞');
+    if (lead.email) indicators.push('📧');
+    if (lead.country) indicators.push('🌍');
+    if (lead.extractedData && Object.keys(lead.extractedData).length > 0) indicators.push('📸');
+    return indicators.length > 0 ? indicators.join(' ') : 'ℹ️';
+  };
+
   const handleExportCSV = () => {
     const headers = ['Name', 'Email', 'Phone', 'Country', 'Status', 'Date', 'Source'];
     const rows = filteredLeads.map(lead => [
@@ -384,11 +394,16 @@ export function Leads() {
                             {(lead.name || 'U').charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <div className="font-bold text-gray-900 dark:text-white text-sm">
-                              {lead.name && lead.name.trim() ? lead.name : 'No name'}
+                            <div className="flex items-center gap-2">
+                              <div className="font-bold text-gray-900 dark:text-white text-sm">
+                                {lead.name && lead.name.trim() ? lead.name.substring(0, 30) : 'No name'}
+                              </div>
+                              <div className="text-xs opacity-60" title="Name • Phone • Email • Country • Extracted">
+                                {getLeadDataIndicators(lead)}
+                              </div>
                             </div>
                             <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                              {lead.email || 'no-email'}
+                              {lead.phone || lead.email || 'no contact info'}
                             </div>
                           </div>
                         </div>
