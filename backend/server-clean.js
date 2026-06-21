@@ -196,19 +196,46 @@ app.post('/api/upload', async (req, res) => {
     }
 
     await validateClientAccess(clientId);
-    console.log(`[UPLOAD] File: ${fileName} for client ${clientId}, type: ${documentType}`);
+    console.log(`[UPLOAD] File: ${fileName} for client ${clientId}, type: ${documentType || fileType}`);
 
     // Extract data using Claude's vision capabilities for images
     let extractedData = {};
 
-    if (fileType.includes('image') && documentType === 'passport') {
+    // Use Claude vision for ANY image file - let Claude intelligently extract whatever data is present
+    if (fileType.includes('image')) {
       try {
-        // Use Claude's vision to analyze the passport image
-        console.log('[UPLOAD] Using Claude vision to extract passport data...');
+        console.log('[UPLOAD] Using Claude vision to extract data from image...');
+        
+        // Determine the prompt based on document type if provided
+        let extractionPrompt = `Please analyze this image and extract any personal or document information you can clearly see. 
+Return ONLY a valid JSON object with ALL fields you can extract. Use these field names if applicable:
+- fullName, firstName, lastName, passportNumber, dateOfBirth, nationality, gender
+- expiryDate, issueDate, placeOfBirth, documentType, documentNumber
+- confidence (0.0 to 1.0 indicating extraction confidence)
+
+For any field present in the image, include it. For fields not visible, omit them or set to null.
+Return ONLY valid JSON, no other text.`;
+
+        if (documentType === 'passport') {
+          extractionPrompt = `Please extract passport information from this image. Extract ONLY the fields that are clearly visible and readable.
+Return ONLY a valid JSON object with these fields (omit fields you cannot clearly see):
+{
+  "fullName": null,
+  "passportNumber": null,
+  "dateOfBirth": null,
+  "nationality": null,
+  "gender": null,
+  "expiryDate": null,
+  "issueDate": null,
+  "placeOfBirth": null,
+  "confidence": 0.5
+}
+Return ONLY valid JSON, no other text. Empty fields should be null, not "unknown" or "N/A".`;
+        }
         
         const response = await anthropicClient.messages.create({
           model: 'claude-opus-4-5-20251101',
-          max_tokens: 500,
+          max_tokens: 800,
           messages: [
             {
               role: 'user',
@@ -223,19 +250,7 @@ app.post('/api/upload', async (req, res) => {
                 },
                 {
                   type: 'text',
-                  text: `Please extract passport information from this image. Return ONLY a JSON object with these fields (extract only what you can clearly see):
-{
-  "fullName": "",
-  "passportNumber": "",
-  "dateOfBirth": "",
-  "nationality": "",
-  "gender": "",
-  "expiryDate": "",
-  "issueDate": "",
-  "placeOfBirth": "",
-  "confidence": 0.0
-}
-Return ONLY the JSON, no other text.`
+                  text: extractionPrompt
                 }
               ]
             }
@@ -243,40 +258,40 @@ Return ONLY the JSON, no other text.`
         });
 
         try {
-          const extractedText = response.content[0].type === 'text' ? response.content[0].text : '{}';
+          let extractedText = response.content[0].type === 'text' ? response.content[0].text : '{}';
+          
+          // Clean up the response - remove markdown code blocks if present
+          extractedText = extractedText
+            .replace(/```json\n?/g, '')
+            .replace(/```\n?/g, '')
+            .trim();
+          
           extractedData = JSON.parse(extractedText);
-          console.log('[UPLOAD] Claude extracted passport data:', Object.keys(extractedData));
+          
+          // Filter out null values and empty strings for cleaner display
+          Object.keys(extractedData).forEach(key => {
+            if (extractedData[key] === null || extractedData[key] === '' || extractedData[key] === undefined) {
+              delete extractedData[key];
+            }
+          });
+          
+          console.log('[UPLOAD] Claude extracted data:', Object.keys(extractedData).join(', '));
         } catch (parseError) {
-          console.log('[UPLOAD] Could not parse Claude response, using fallback');
-          // Fallback to generic extraction if parsing fails
-          extractedData = {
-            documentType: 'passport',
-            confidence: 0.5,
-            note: 'Could not extract text from image. Please try a clearer image.'
-          };
+          console.log('[UPLOAD] Could not parse Claude response:', parseError.message);
+          // Return empty data instead of fallback - let frontend ask user for manual entry
+          extractedData = {};
         }
       } catch (visionError) {
         console.error('[UPLOAD] Vision extraction failed:', visionError.message);
-        extractedData = {
-          documentType: 'passport',
-          error: 'Could not analyze image',
-          confidence: 0
-        };
+        // Return empty data - frontend will show fallback message
+        extractedData = {};
       }
-    } else if (fileType.includes('image') || fileName.endsWith('.pdf')) {
-      // Fallback: Simulate OCR extraction
-      extractedData = {
-        documentType: documentType || 'document',
-        note: 'Image received. Please confirm the extracted information or provide details manually.'
-      };
-      console.log('[UPLOAD] Using simulated extraction for document');
+    } else if (fileName.endsWith('.pdf')) {
+      // PDF extraction - for now just acknowledge receipt
+      extractedData = {};
+      console.log('[UPLOAD] PDF received, manual entry may be needed');
     } else if (fileType.includes('word') || fileType.includes('document')) {
-      extractedData = {
-        documentType: 'document',
-        text: 'Document content extracted',
-        pages: 1,
-        language: 'en'
-      };
+      extractedData = {};
     }
 
     // Save file metadata to Firestore

@@ -341,10 +341,7 @@ export function Embed() {
         const fileData = e.target?.result as string;
         const base64Data = fileData.split(',')[1]; // Remove data URL prefix
 
-        // Detect if this is likely a passport
-        const fileName = file.name.toLowerCase();
-        const isPassport = fileName.includes('passport') || file.name.length < 30;
-
+        // Always send as passport for now - let Claude analyze what's actually in the image
         const response = await fetch(`${API_BASE_URL}/api/upload`, {
           method: 'POST',
           headers: {
@@ -356,7 +353,7 @@ export function Embed() {
             fileName: file.name,
             fileType: file.type,
             fileData: base64Data,
-            documentType: isPassport ? 'passport' : 'document'
+            documentType: 'passport'
           }),
         });
 
@@ -364,7 +361,7 @@ export function Embed() {
           const data = await response.json();
           console.log('[UPLOAD] Success:', data);
           
-          // Auto-extract passport/document data if available
+          // Check if Claude extracted any data
           if (data.extractedData && Object.keys(data.extractedData).length > 0) {
             setConversationContext(prev => ({
               ...prev,
@@ -378,24 +375,36 @@ export function Embed() {
                 // Format camelCase keys to readable format
                 const readableKey = key
                   .replace(/([A-Z])/g, ' $1') // Add space before capitals
-                  .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
+                  .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
+                  .replace(/^Confidence/, 'Confidence Score'); // Special case
                 return `• **${readableKey}**: ${value}`;
               })
               .join('\n');
 
-            // Show extracted data confirmation with preview
-            const confirmMsg: Message = {
-              id: (Date.now() + 2).toString(),
-              text: `✓ Perfect! I've extracted the information from your ${isPassport ? 'passport' : 'document'}. Please review the details below:\n\n${formattedData}\n\nDoes everything look correct?`,
-              isBot: true,
-              options: ['Yes, confirmed', 'No, let me correct']
-            };
-            setMessages(prev => [...prev, confirmMsg]);
+            if (formattedData.trim()) {
+              // Show extracted data confirmation with preview
+              const confirmMsg: Message = {
+                id: (Date.now() + 2).toString(),
+                text: `✓ Perfect! I've successfully extracted the information from your document:\n\n${formattedData}\n\n**Please review the details. Is everything correct?**`,
+                isBot: true,
+                options: ['Yes, looks good!', 'No, let me correct']
+              };
+              setMessages(prev => [...prev, confirmMsg]);
+            } else {
+              // Data was extracted but empty after filtering - shouldn't happen
+              const retryMsg: Message = {
+                id: (Date.now() + 2).toString(),
+                text: `I received your document, but I wasn't able to extract readable information from the image. This might be due to image quality or lighting.\n\n**Please try:**\n• Upload a clearer photo with better lighting\n• Ensure the entire document is visible\n• Use good contrast (not blurry or at an angle)`,
+                isBot: true,
+                options: ['Upload another image', 'Fill manually instead']
+              };
+              setMessages(prev => [...prev, retryMsg]);
+            }
           } else {
-            // No data extracted, ask user for manual entry
+            // No data extracted - ask for manual entry
             const fallbackMsg: Message = {
               id: (Date.now() + 2).toString(),
-              text: `I've received your document, but I wasn't able to automatically extract the text. No problem! Let's fill in the information manually. To start, what is your full name as it appears on your passport?`,
+              text: `I've received your document, but I wasn't able to automatically extract the information. This might be because:\n• The image quality is too low\n• The document isn't fully visible\n• The text is unclear or at an angle\n\n**Let's fill in your information manually instead.** To start, what is your full name?`,
               isBot: true,
             };
             setMessages(prev => [...prev, fallbackMsg]);
