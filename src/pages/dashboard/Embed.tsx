@@ -11,7 +11,10 @@ import {
   Send,
   RefreshCw,
   AlertCircle,
-  ChevronRight
+  ChevronRight,
+  Upload,
+  Download,
+  File
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useRealtimeData } from '../../hooks/useData';
@@ -22,15 +25,14 @@ interface Message {
   text: string;
   isBot: boolean;
   options?: string[];
+  hasDocument?: boolean;
+  documentType?: string;
 }
 
-interface FormData {
-  [key: string]: string | string[] | boolean | null;
+interface ConversationContext {
+  [key: string]: any;
 }
 
-// Backend API endpoint configuration
-// Development: localhost backend on port 5001
-// Production: Railway backend at kylo-production.up.railway.app
 const API_BASE_URL = (() => {
   const isLocalhost = typeof window !== 'undefined' && (
     window.location.hostname === 'localhost' ||
@@ -42,7 +44,6 @@ const API_BASE_URL = (() => {
     return 'http://localhost:5001';
   }
   
-  // Production: use Railway backend directly
   return 'https://kylo-production.up.railway.app';
 })();
 
@@ -53,21 +54,26 @@ export function Embed() {
   const [welcomeMsg, setWelcomeMsg] = useState('Hi there! How can I help you today?');
   const [primaryColor, setPrimaryColor] = useState('#06b6d4');
   
-  // Chat state
+  // Chat state - now conversational, not form-based
   const [isWidgetOpen, setIsWidgetOpen] = useState(true);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 'welcome',
+      text: 'Hi! I am Support Assistant from KYLO-AI. I am here to help you with your UAE license application or answer any questions you might have. Would you like to:\n\n1. Learn more about our services?\n2. Apply for a UAE license?\n3. Ask a question?',
+      isBot: true,
+      options: ['Learn about services', 'Apply for license', 'Ask question']
+    }
+  ]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [conversationId] = useState(() => `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [conversationContext, setConversationContext] = useState<ConversationContext>({});
   
-  // Form-based flow state
-  const [currentStep, setCurrentStep] = useState(0);
-  const [formData, setFormData] = useState<FormData>({});
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  // Demo mode: use a fixed clientId for testing without authentication
   const demoClientId = 'gxx8SK6WQHfd9xZ2HOLUW3PDFGE3';
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load training files as QA context
   const subscribe = useCallback((cb: (data: TrainingFile[]) => void) => {
@@ -82,101 +88,6 @@ export function Embed() {
     subscribe,
     []
   );
-
-  // Form-based lead collection steps
-  const formSteps = [
-    {
-      step: 0,
-      question: "Hi! I'm here to help you with your UAE license application. Should we start now?",
-      type: 'buttons',
-      options: ['Yes, proceed', 'Later'],
-      field: 'consent'
-    },
-    {
-      step: 1,
-      question: "What's your full name?",
-      type: 'text',
-      field: 'fullName'
-    },
-    {
-      step: 2,
-      question: "What's your email address?",
-      type: 'text',
-      field: 'email'
-    },
-    {
-      step: 3,
-      question: "What's your mobile number?",
-      type: 'text',
-      field: 'mobile'
-    },
-    {
-      step: 4,
-      question: "What country are you currently in?",
-      type: 'text',
-      field: 'country'
-    },
-    {
-      step: 5,
-      question: "Please share your passport number",
-      type: 'text',
-      field: 'passport'
-    },
-    {
-      step: 6,
-      question: "What type of business are you planning to establish?",
-      type: 'text',
-      field: 'businessType'
-    },
-    {
-      step: 7,
-      question: "Which UAE free zone or mainland location interests you?",
-      type: 'buttons',
-      options: ['Mainland', 'Dubai Free Zone', 'Ajman Free Zone', 'Other'],
-      field: 'jurisdiction'
-    },
-    {
-      step: 8,
-      question: "How many visas will you need?",
-      type: 'buttons',
-      options: ['1', '2', '3', '4+'],
-      field: 'visaCount'
-    },
-    {
-      step: 9,
-      question: "How many shareholders will be in this company?",
-      type: 'buttons',
-      options: ['1 (Just me)', '2', '3', '4+'],
-      field: 'shareholderCount'
-    },
-    {
-      step: 10,
-      question: "What's your estimated monthly revenue (AED)?",
-      type: 'buttons',
-      options: ['Under 10K', '10K-50K', '50K-100K', '100K+'],
-      field: 'revenue'
-    },
-    {
-      step: 11,
-      question: "Do you have existing business documents to share?",
-      type: 'buttons',
-      options: ['Yes', 'No'],
-      field: 'existingDocs'
-    }
-  ];
-
-  // Initialize chat with first message
-  useEffect(() => {
-    if (messages.length === 0 && currentStep === 0) {
-      const firstStep = formSteps[0];
-      setMessages([{
-        id: 'step-0',
-        text: firstStep.question,
-        isBot: true,
-        options: firstStep.type === 'buttons' ? firstStep.options : undefined
-      }]);
-    }
-  }, []);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -199,120 +110,72 @@ export function Embed() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleOptionClick = async (option: string) => {
-    // Handle special cases
-    if (currentStep === 0 && option === 'Later') {
-      setMessages((prev) => [
-        ...prev,
-        { id: Date.now().toString(), text: option, isBot: false }
-      ]);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          text: 'No problem! Feel free to come back anytime. 😊',
-          isBot: true,
-        }
-      ]);
-      return;
+  /**
+   * Parse Claude's response to extract options if they're formatted in the message
+   * Claude can indicate options with markers like: [OPTION] text here [/OPTION]
+   * or by listing them with numbers: 1) Option one 2) Option two or 1. Option one 2. Option two
+   */
+  const parseOptionsFromResponse = (text: string): { text: string; options: string[] | undefined } => {
+    // Check for explicit option markers
+    const optionMarkerRegex = /\[OPTION\](.*?)\[\/OPTION\]/gs;
+    const matches = Array.from(text.matchAll(optionMarkerRegex));
+    
+    if (matches.length > 0) {
+      const options = matches.map(m => m[1].trim());
+      const cleanText = text.replace(optionMarkerRegex, '').trim();
+      return { text: cleanText, options };
     }
 
-    // Add user's response
-    const newUserMsg: Message = {
-      id: Date.now().toString(),
-      text: option,
-      isBot: false
-    };
-    setMessages((prev) => [...prev, newUserMsg]);
-
-    // Update form data
-    const currentStepData = formSteps[currentStep];
-    setFormData((prev) => ({
-      ...prev,
-      [currentStepData.field]: option
-    }));
-
-    // Move to next step
-    const nextStep = currentStep + 1;
-    if (nextStep < formSteps.length) {
-      setIsTyping(true);
-      setTimeout(() => {
-        const stepData = formSteps[nextStep];
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `step-${nextStep}`,
-            text: stepData.question,
-            isBot: true,
-            options: stepData.type === 'buttons' ? stepData.options : undefined
-          }
-        ]);
-        setCurrentStep(nextStep);
-        setIsTyping(false);
-      }, 500);
-    } else {
-      // Form complete - send to backend
-      await submitFormToBackend();
+    // Check for numbered list format with ) or . separators
+    // Matches: "1) Option" or "1. Option" with 2-4 options
+    const numberedListRegex = /(\d+)[.)]\s*([^\n\d]+?)(?=\s*\d+[.)]\s|$)/gs;
+    const numberedMatches = Array.from(text.matchAll(numberedListRegex));
+    
+    if (numberedMatches.length >= 2 && numberedMatches.length <= 4) {
+      const options = numberedMatches.map(m => m[2].trim());
+      
+      // Only use these as buttons if they're reasonably short (not long paragraphs)
+      if (options.every(opt => opt.length < 100 && !opt.includes('\n'))) {
+        // Remove the numbered list from the text
+        const cleanText = text.replace(numberedListRegex, '').trim();
+        return { text: cleanText, options };
+      }
     }
+
+    return { text, options: undefined };
   };
 
-  const handleSendMessage = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!inputValue.trim()) return;
+  /**
+   * Main conversation handler - sends to Claude, gets smart response
+   */
+  const handleSendMessage = async (userInput?: string) => {
+    const messageToSend = userInput || inputValue;
+    if (!messageToSend.trim()) return;
 
-    const userMessage = inputValue;
+    // Add user message
     const newUserMsg: Message = {
       id: Date.now().toString(),
-      text: userMessage,
+      text: messageToSend,
       isBot: false
     };
-
     setMessages((prev) => [...prev, newUserMsg]);
     setInputValue('');
-
-    // Update form data with text input
-    const currentStepData = formSteps[currentStep];
-    setFormData((prev) => ({
-      ...prev,
-      [currentStepData.field]: userMessage
-    }));
-
-    // Move to next step
-    const nextStep = currentStep + 1;
-    if (nextStep < formSteps.length) {
-      setIsTyping(true);
-      setTimeout(() => {
-        const stepData = formSteps[nextStep];
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `step-${nextStep}`,
-            text: stepData.question,
-            isBot: true,
-            options: stepData.type === 'buttons' ? stepData.options : undefined
-          }
-        ]);
-        setCurrentStep(nextStep);
-        setIsTyping(false);
-      }, 500);
-    } else {
-      // Form complete - send to backend
-      await submitFormToBackend();
-    }
-  };
-
-  const submitFormToBackend = async () => {
     setIsTyping(true);
     setApiError(null);
 
     try {
       const clientId = user?.uid || demoClientId;
 
-      // Convert form data to messages format
-      const formMessages = Object.entries(formData).map(([key, value], idx) => ({
-        role: 'user' as const,
-        content: `${key}: ${value}`
-      }));
+      // Build message history for Claude
+      const claudeMessages = messages.map(m => ({
+        role: m.isBot ? 'assistant' : 'user',
+        content: m.text
+      })).concat([
+        {
+          role: 'user',
+          content: messageToSend
+        }
+      ]);
 
       // Call Claude API via backend
       const response = await fetch(`${API_BASE_URL}/api/chat`, {
@@ -323,7 +186,7 @@ export function Embed() {
         body: JSON.stringify({
           clientId,
           conversationId,
-          messages: formMessages,
+          messages: claudeMessages,
           qaContext: trainingFiles.map(file => ({
             id: file.id,
             question: file.name,
@@ -340,41 +203,115 @@ export function Embed() {
       }
 
       const data = await response.json();
-
       setIsTyping(false);
-      setMessages((prev) => [
+
+      // Parse response to extract options if Claude included them
+      const { text: responseText, options } = parseOptionsFromResponse(data.message);
+
+      const botMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        text: responseText,
+        isBot: true,
+        options: options
+      };
+
+      setMessages((prev) => [...prev, botMsg]);
+
+      // Update conversation context with extracted info
+      setConversationContext(prev => ({
         ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          text: data.message,
-          isBot: true,
-        }
-      ]);
+        lastBotResponse: responseText,
+        lastOptions: options,
+        lastUpdateTime: new Date().toISOString()
+      }));
+
     } catch (error) {
       setIsTyping(false);
       const errorMsg = error instanceof Error ? error.message : 'Failed to get response';
       setApiError(errorMsg);
+      
+      // Show fallback message
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
-          text: `Thank you for providing your information! Our team will review your details and follow up shortly.`,
+          text: 'I apologize, there was a connection issue. Please try again or contact our support team.',
           isBot: true,
         }
       ]);
     }
   };
 
+  /**
+   * Handle option button clicks
+   */
+  const handleOptionClick = (option: string) => {
+    handleSendMessage(option);
+  };
+
+  /**
+   * Handle file uploads (passport, documents, etc.)
+   */
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingFile(true);
+
+    try {
+      // Show file upload message to user
+      const fileName = file.name;
+      const fileMsg: Message = {
+        id: Date.now().toString(),
+        text: `📎 Uploading ${fileName}...`,
+        isBot: false,
+        hasDocument: true,
+        documentType: file.type
+      };
+      setMessages((prev) => [...prev, fileMsg]);
+
+      // TODO: Upload to backend, extract if passport, autofill
+      // For now, simulate with a message
+      setTimeout(() => {
+        const confirmMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          text: `✓ Got your ${fileName}! Analyzing the document...`,
+          isBot: true,
+        };
+        setMessages((prev) => [...prev, confirmMsg]);
+
+        // Simulate next question after processing
+        setTimeout(() => {
+          handleSendMessage(`I've uploaded the file: ${fileName}. Please continue with the next step.`);
+        }, 1500);
+      }, 1000);
+
+      setUploadingFile(false);
+    } catch (error) {
+      setUploadingFile(false);
+      setApiError('File upload failed. Please try again.');
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  /**
+   * Reset chat and start new conversation
+   */
   const handleResetChat = () => {
-    setMessages([{
-      id: 'step-0',
-      text: formSteps[0].question,
-      isBot: true,
-      options: formSteps[0].options
-    }]);
-    setCurrentStep(0);
-    setFormData({});
+    setMessages([
+      {
+        id: 'welcome',
+        text: 'Hi! I am Support Assistant from KYLO-AI. I am here to help you with your UAE license application or answer any questions you might have. Would you like to:\n\n1. Learn more about our services?\n2. Apply for a UAE license?\n3. Ask a question?',
+        isBot: true,
+        options: ['Learn about services', 'Apply for license', 'Ask question']
+      }
+    ]);
     setInputValue('');
+    setConversationContext({});
     setApiError(null);
   };
 
@@ -600,17 +537,27 @@ export function Embed() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Widget Input - Show based on current step type */}
-              {currentStep < formSteps.length && formSteps[currentStep].type === 'text' ? (
-                <form onSubmit={handleSendMessage} className="p-3 bg-white dark:bg-navy-900 border-t border-gray-100 dark:border-navy-800 flex items-center gap-2">
+              {/* Widget Input - Always show text input for free conversation */}
+              <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="p-3 bg-white dark:bg-navy-900 border-t border-gray-100 dark:border-navy-800 space-y-2">
+                <div className="flex items-center gap-2">
                   <input
                     type="text"
-                    placeholder="Type your answer..."
+                    placeholder="Type your message..."
                     className="flex-1 bg-gray-100 dark:bg-navy-950 border border-transparent focus:border-gray-200 dark:focus:border-navy-700 rounded-full px-4 py-2.5 text-sm outline-none dark:text-white transition-colors"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
+                    disabled={isTyping}
                     autoFocus
                   />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isTyping || uploadingFile}
+                    className="w-10 h-10 rounded-full text-white flex items-center justify-center flex-shrink-0 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: primaryColor }}
+                    title="Upload document">
+                    <Upload size={16} />
+                  </button>
                   <button
                     type="submit"
                     disabled={!inputValue.trim() || isTyping}
@@ -618,12 +565,18 @@ export function Embed() {
                     style={{ backgroundColor: primaryColor }}>
                     <Send size={16} className="ml-0.5" />
                   </button>
-                </form>
-              ) : (
-                <div className="p-3 bg-white dark:bg-navy-900 border-t border-gray-100 dark:border-navy-800 text-center text-xs text-gray-500 dark:text-gray-400">
-                  {currentStep >= formSteps.length ? '✓ Form complete' : 'Select an option above'}
                 </div>
-              )}
+                {uploadingFile && (
+                  <div className="text-xs text-gray-500 text-center">Uploading file...</div>
+                )}
+              </form>
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={handleFileUpload}
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+              />
             </div>
           </div>
         </div>
