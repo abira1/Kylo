@@ -75,23 +75,25 @@ export function Leads() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('[LEADS] Fetched leads:', data.leads?.length || 0);
-        if (data.leads && data.leads.length > 0) {
-          console.log('[LEADS] First lead:', {
-            id: data.leads[0].id,
-            name: data.leads[0].name,
-            email: data.leads[0].email,
-            source: data.leads[0].source,
-            status: data.leads[0].status
-          });
-          
-          // Validate lead data - log any with missing names
-          const problematicLeads = data.leads.filter(l => !l.name || l.name.trim() === '');
-          if (problematicLeads.length > 0) {
-            console.warn('[LEADS] ⚠️ Found leads with missing names:', problematicLeads.map(l => ({ id: l.id, email: l.email })));
-          }
-        }
-        setLeads(data.leads || []);
+        console.log('[LEADS] API Response:', { success: data.success, count: data.count, leadsCount: data.leads?.length });
+        
+        // Parse dates and ensure proper structure
+        const parsedLeads = (data.leads || []).map((lead: any) => ({
+          ...lead,
+          createdAt: lead.createdAt ? new Date(lead.createdAt) : new Date(),
+          updatedAt: lead.updatedAt ? new Date(lead.updatedAt) : new Date(),
+        }));
+
+        console.log('[LEADS] Parsed leads:', parsedLeads.length, '| First lead:', parsedLeads[0] ? {
+          id: parsedLeads[0].id,
+          name: parsedLeads[0].name,
+          email: parsedLeads[0].email,
+          phone: parsedLeads[0].phone,
+          status: parsedLeads[0].status,
+          createdAt: parsedLeads[0].createdAt
+        } : 'NONE');
+        
+        setLeads(parsedLeads);
       } else {
         console.error('Failed to fetch leads, status:', response.status);
         // Don't clear leads on error - keep showing what we had
@@ -111,8 +113,14 @@ export function Leads() {
     }
   };
 
-  // Fetch leads on mount and set up auto-refresh
+  // Fetch leads on mount and when user changes
   useEffect(() => {
+    // Wait for auth to finish loading before fetching
+    if (!user && !user?.uid) {
+      console.log('[LEADS] User not authenticated yet, waiting...');
+      // Still set interval even if not logged in yet (will use demoClientId)
+    }
+    
     // Initial fetch
     fetchLeads(false);
 
@@ -127,7 +135,7 @@ export function Leads() {
         clearInterval(refreshIntervalRef.current);
       }
     };
-  }, []);
+  }, [user?.uid]); // Re-fetch when user changes
 
   // Manual refresh handler
   const handleRefresh = async () => {
