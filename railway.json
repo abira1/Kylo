@@ -7,5 +7,6 @@
   "deploy": {
     "startCommand": "cd backend && node server-clean.js",
     "restartPolicyMaxRetries": 10
-  }
+  },
+  "forceRebuild": "2025-01-14-001"
 }
