@@ -1,6 +1,22 @@
 const { getOrCreateClient, getMergedKB } = require('./firebaseService');
 const { buildWebSystemPrompt } = require('../prompts/uaeAgentSystemPrompt');
 const { PASSPORT_COLLECTION_PROMPT } = require('../prompts/passportCollectionPrompt');
+const fs = require('fs');
+const path = require('path');
+
+// Load UAE licensing & visa knowledge base at startup
+let UAE_KNOWLEDGE_BASE = '';
+try {
+  const kbPath = path.join(__dirname, '../knowledge-base/uae-licensing-visa.md');
+  if (fs.existsSync(kbPath)) {
+    UAE_KNOWLEDGE_BASE = fs.readFileSync(kbPath, 'utf-8');
+    console.log('[STARTUP] ✅ UAE Licensing & Visa knowledge base loaded successfully');
+  } else {
+    console.warn('[STARTUP] ⚠️ UAE knowledge base file not found at:', kbPath);
+  }
+} catch (error) {
+  console.warn('[STARTUP] ⚠️ Error loading UAE knowledge base:', error.message);
+}
 
 /**
  * Convert array or object to array
@@ -34,6 +50,11 @@ async function buildSystemPrompt(clientId, qaContext = [], messageCount = 0) {
           passportPrompt += `${i + 1}. Q: ${q}\nA: ${a}\n\n`;
         });
       }
+
+      // Add UAE licensing & visa knowledge base
+      if (UAE_KNOWLEDGE_BASE) {
+        passportPrompt += `\n\n=== UAE BUSINESS LICENSING & VISA KNOWLEDGE BASE ===\n${UAE_KNOWLEDGE_BASE}\n=== END OF KNOWLEDGE BASE ===`;
+      }
       
       return passportPrompt;
     }
@@ -65,6 +86,11 @@ async function buildSystemPrompt(clientId, qaContext = [], messageCount = 0) {
     // Add client-specific instructions if they exist
     if (client.systemPromptAddition) {
       clientContext += `\nADDITIONAL INSTRUCTIONS:\n${client.systemPromptAddition}`;
+    }
+
+    // Add UAE licensing & visa knowledge base (always available for reference)
+    if (UAE_KNOWLEDGE_BASE) {
+      clientContext += `\n\n=== UAE BUSINESS LICENSING & VISA KNOWLEDGE BASE ===\n${UAE_KNOWLEDGE_BASE}\n=== END OF KNOWLEDGE BASE ===`;
     }
 
     // Opt-out hatch: a client can fall back to the generic assistant persona by
