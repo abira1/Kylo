@@ -43,7 +43,9 @@ export function Conversations() {
         setLoading(true);
       }
       
-      const clientId = demoClientId;
+      // Use user's UID, fallback to demoClientId
+      const clientId = user?.uid || demoClientId;
+      console.log('[CONVERSATIONS] Fetching for clientId:', clientId, '(user.uid:', user?.uid, ')');
 
       const response = await fetch(`${API_BASE_URL}/api/conversations/${clientId}`, {
         method: 'GET',
@@ -55,9 +57,15 @@ export function Conversations() {
       if (response.ok) {
         const data = await response.json();
         console.log('[CONVERSATIONS] Fetched:', data.conversations?.length || 0);
+        if (data.conversations && data.conversations.length > 0) {
+          console.log('[CONVERSATIONS] First conversation:', {
+            id: data.conversations[0].id,
+            messageCount: data.conversations[0].messages?.length || 0
+          });
+        }
         setConversations(data.conversations || []);
       } else {
-        console.error('Failed to fetch conversations');
+        console.error('Failed to fetch conversations, status:', response.status);
         setConversations([]);
       }
     } catch (error) {

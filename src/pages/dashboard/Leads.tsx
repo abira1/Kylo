@@ -61,7 +61,9 @@ export function Leads() {
         setLoading(true);
       }
       
-      const clientId = demoClientId;
+      // Use user's UID, fallback to demoClientId
+      const clientId = user?.uid || demoClientId;
+      console.log('[LEADS] Fetching for clientId:', clientId, '(user.uid:', user?.uid, ')');
 
       const response = await fetch(`${API_BASE_URL}/api/leads/${clientId}`, {
         method: 'GET',
@@ -73,9 +75,17 @@ export function Leads() {
       if (response.ok) {
         const data = await response.json();
         console.log('[LEADS] Fetched leads:', data.leads?.length || 0);
+        if (data.leads && data.leads.length > 0) {
+          console.log('[LEADS] First lead:', {
+            id: data.leads[0].id,
+            name: data.leads[0].name,
+            email: data.leads[0].email,
+            source: data.leads[0].source
+          });
+        }
         setLeads(data.leads || []);
       } else {
-        console.error('Failed to fetch leads');
+        console.error('Failed to fetch leads, status:', response.status);
         setLeads([]);
       }
     } catch (error) {
