@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>KYLO Widget Embed Test</title>
+</head>
+<body>
+  <h1>Testing KYLO Widget Embed</h1>
+  <p>The widget should load in the bottom-right corner if embed code works correctly.</p>
+  
+  <!-- KYLO Widget Embed Code (from Embed.tsx) -->
+  <script>
+    window.KYLO_CONFIG = {
+      publicKey: "pk_live_IOS6KZgooLjVTZfbwl4v",
+      position: "bottom-right"
+    };
+  </script>
+  <script src="https://cdn.kylo.ae/widget.js" async></script>
+  
+  <p style="margin-top: 100px;">
+    If the widget doesn't appear, check:
+    <ul>
+      <li>Browser console for errors</li>
+      <li>Network tab for failed requests</li>
+      <li>CDN status at https://cdn.kylo.ae/widget.js</li>
+    </ul>
+  </p>
+</body>
+</html>

@@ -226,6 +226,7 @@ export function Register() {
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
+                    autoComplete="email"
                     required
                     className="input-field pl-12"
                     placeholder="john@company.com"
@@ -242,6 +243,7 @@ export function Register() {
                     name="password"
                     value={formData.password}
                     onChange={handleInputChange}
+                    autoComplete="new-password"
                     required
                     className="input-field pl-12"
                     placeholder="••••••••"
