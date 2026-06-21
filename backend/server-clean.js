@@ -408,6 +408,30 @@ app.put('/api/leads/:clientId/:leadId', async (req, res) => {
 });
 
 /**
+ * DELETE LEAD ENDPOINT
+ * Delete a specific lead
+ */
+app.delete('/api/leads/:clientId/:leadId', async (req, res) => {
+  try {
+    const { clientId, leadId } = req.params;
+
+    await validateClientAccess(clientId);
+    
+    const { deleteLead } = require('./services/firebaseService');
+    await deleteLead(clientId, leadId);
+
+    res.json({
+      success: true,
+      message: 'Lead deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('[DELETE LEAD ERROR]', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * CLEANUP ENDPOINT - REMOVE INVALID LEADS
  * DELETE /api/cleanup/invalid-leads/:clientId
  */
