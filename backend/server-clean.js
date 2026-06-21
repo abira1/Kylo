@@ -237,20 +237,20 @@ app.post('/api/upload', async (req, res) => {
  * Fetch all leads for a client
  */
 app.get('/api/leads/:clientId', async (req, res) => {
+  console.log('[DIAGNOSTIC] /api/leads route handler called');
   try {
     const { clientId } = req.params;
     const { limit = 50 } = req.query;
 
-    await validateClientAccess(clientId);
-    
-    const { getLeads } = require('./services/firebaseService');
-    const leads = await getLeads(clientId, parseInt(limit));
+    console.log('[DIAGNOSTIC] clientId:', clientId);
 
+    // Temporary: return mock data without calling Firestore
     res.json({
       success: true,
+      diagnostic: 'Testing if route is registered',
       clientId,
-      count: leads.length,
-      leads
+      count: 0,
+      leads: []
     });
 
   } catch (error) {
