@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Filter, Bot, User, Clock, CheckCircle2, Loader } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Filter, Bot, User, Clock, CheckCircle2, Loader, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 interface Conversation {
@@ -28,44 +28,69 @@ export function Conversations() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConv, setActiveConv] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const demoClientId = 'gxx8SK6WQHfd9xZ2HOLUW3PDFGE3';
 
-  // Fetch conversations (once on mount)
-  useEffect(() => {
-    const fetchConversations = async () => {
-      try {
+  // Function to fetch conversations
+  const fetchConversations = async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
         setLoading(true);
-        // Always use demoClientId for this demo
-        const clientId = demoClientId;
+      }
+      
+      const clientId = demoClientId;
 
-        const response = await fetch(`${API_BASE_URL}/api/conversations/${clientId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
+      const response = await fetch(`${API_BASE_URL}/api/conversations/${clientId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-        if (response.ok) {
-          const data = await response.json();
-          console.log('[CONVERSATIONS] Fetched:', data.conversations?.length || 0);
-          setConversations(data.conversations || []);
-        } else {
-          console.error('Failed to fetch conversations');
-          setConversations([]);
-        }
-      } catch (error) {
-        console.error('Error fetching conversations:', error);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[CONVERSATIONS] Fetched:', data.conversations?.length || 0);
+        setConversations(data.conversations || []);
+      } else {
+        console.error('Failed to fetch conversations');
         setConversations([]);
-      } finally {
-        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+      setConversations([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Fetch conversations on mount and set up auto-refresh
+  useEffect(() => {
+    // Initial fetch
+    fetchConversations(false);
+
+    // Auto-refresh every 5 seconds
+    refreshIntervalRef.current = setInterval(() => {
+      fetchConversations(true);
+    }, 5000);
+
+    // Cleanup interval on unmount
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
       }
     };
-
-    // Only fetch once on component mount
-    fetchConversations();
   }, []);
+
+  // Manual refresh handler
+  const handleRefresh = async () => {
+    await fetchConversations(true);
+  };
 
   const filteredConversations = conversations.filter(conv =>
     conv.id.toLowerCase().includes(searchTerm.toLowerCase())
@@ -93,7 +118,7 @@ export function Conversations() {
         <div
           className={`w-full md:w-80 border-r border-gray-100 dark:border-navy-700 flex flex-col bg-white dark:bg-navy-800 ${activeConv ? 'hidden md:flex' : 'flex'}`}>
           
-          <div className="p-4 border-b border-gray-100 dark:border-navy-700">
+          <div className="p-4 border-b border-gray-100 dark:border-navy-700 space-y-3">
             <div className="relative">
               <Search
                 className="absolute left-3 top-2.5 text-gray-400"
@@ -104,9 +129,17 @@ export function Conversations() {
                 placeholder="Search chats..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="input-field pl-9 py-2 text-sm bg-gray-50 dark:bg-navy-900" />
+                className="input-field pl-9 py-2 text-sm bg-gray-50 dark:bg-navy-900 w-full" />
               
             </div>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="btn-secondary text-xs w-full py-2 disabled:opacity-60 transition-all"
+              title="Refresh conversations">
+              <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} /> 
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
           </div>
 
           {loading && (

@@ -152,6 +152,72 @@ export function Embed() {
     const messageToSend = userInput || inputValue;
     if (!messageToSend.trim()) return;
 
+    // Check if user is confirming extracted data from passport upload
+    const isConfirmingExtraction = 
+      (messageToSend.includes('Yes') || messageToSend.includes('looks good')) &&
+      conversationContext.fullName; // Has extracted passport data
+
+    // If confirming extracted data, save the lead immediately
+    if (isConfirmingExtraction) {
+      console.log('[LEAD] Auto-saving lead from extracted passport data...');
+      const clientId = user?.uid || demoClientId;
+      
+      try {
+        // Prepare lead data from extracted information
+        const leadData = {
+          conversationId,
+          messages: messages,
+          name: conversationContext.fullName || conversationContext.name || 'Unknown',
+          email: conversationContext.email || '',
+          phone: conversationContext.phone || '',
+          country: conversationContext.nationality || conversationContext.country || '',
+          businessType: conversationContext.businessType || '',
+          passportNumber: conversationContext.passportNumber || '',
+          dateOfBirth: conversationContext.dateOfBirth || '',
+          extractedData: conversationContext,
+          status: 'new',
+          source: 'passport_upload',
+          notes: `Lead captured from passport upload. Extracted via Claude vision API.`
+        };
+
+        // Save to Firestore
+        const response = await fetch(`${API_BASE_URL}/api/leads`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            clientId,
+            leadData
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[LEAD] Auto-saved successfully:', data.leadId);
+          
+          // Add confirmation message to chat
+          setMessages((prev) => [...prev, {
+            id: Date.now().toString(),
+            text: messageToSend,
+            isBot: false
+          }]);
+          
+          setMessages((prev) => [...prev, {
+            id: (Date.now() + 1).toString(),
+            text: `✓ Perfect! I've saved your information as a lead in our system. We'll review your application and get back to you shortly.\n\nYour reference ID is: ${data.leadId}`,
+            isBot: true,
+          }]);
+          
+          setInputValue('');
+          return;
+        }
+      } catch (error) {
+        console.error('[LEAD] Auto-save failed:', error);
+        // Continue with normal flow if save fails
+      }
+    }
+
     // Add user message
     const newUserMsg: Message = {
       id: Date.now().toString(),

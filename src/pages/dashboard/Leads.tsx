@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Search,
   Filter,
@@ -7,7 +7,8 @@ import {
   Mail,
   Phone,
   Tag,
-  Loader } from
+  Loader,
+  RefreshCw } from
 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '../../hooks/useAuth';
@@ -43,46 +44,71 @@ export function Leads() {
   const { user } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const demoClientId = 'gxx8SK6WQHfd9xZ2HOLUW3PDFGE3';
 
-  // Fetch leads from backend (once on mount)
-  useEffect(() => {
-    const fetchLeads = async () => {
-      try {
+  // Function to fetch leads
+  const fetchLeads = async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
         setLoading(true);
-        // Always use demoClientId for this demo
-        const clientId = demoClientId;
+      }
+      
+      const clientId = demoClientId;
 
-        const response = await fetch(`${API_BASE_URL}/api/leads/${clientId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
+      const response = await fetch(`${API_BASE_URL}/api/leads/${clientId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-        if (response.ok) {
-          const data = await response.json();
-          console.log('[LEADS] Fetched leads:', data.leads?.length || 0);
-          setLeads(data.leads || []);
-        } else {
-          console.error('Failed to fetch leads');
-          setLeads([]);
-        }
-      } catch (error) {
-        console.error('Error fetching leads:', error);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[LEADS] Fetched leads:', data.leads?.length || 0);
+        setLeads(data.leads || []);
+      } else {
+        console.error('Failed to fetch leads');
         setLeads([]);
-      } finally {
-        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Error fetching leads:', error);
+      setLeads([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Fetch leads on mount and set up auto-refresh
+  useEffect(() => {
+    // Initial fetch
+    fetchLeads(false);
+
+    // Auto-refresh every 5 seconds to catch new leads
+    refreshIntervalRef.current = setInterval(() => {
+      fetchLeads(true);
+    }, 5000);
+
+    // Cleanup interval on unmount
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
       }
     };
-
-    // Only fetch once on component mount
-    fetchLeads();
   }, []);
+
+  // Manual refresh handler
+  const handleRefresh = async () => {
+    await fetchLeads(true);
+  };
 
   // Filter leads
   const filteredLeads = leads.filter(lead => {
@@ -159,6 +185,14 @@ export function Leads() {
           </p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
+          <button 
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="btn-secondary text-xs sm:text-sm w-full sm:w-auto disabled:opacity-60 transition-all"
+            title="Refresh leads list">
+            <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} /> 
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
           <button 
             onClick={handleExportCSV}
             className="btn-secondary text-xs sm:text-sm w-full sm:w-auto">
