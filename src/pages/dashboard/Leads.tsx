@@ -49,12 +49,13 @@ export function Leads() {
 
   const demoClientId = 'gxx8SK6WQHfd9xZ2HOLUW3PDFGE3';
 
-  // Fetch leads from backend
+  // Fetch leads from backend (once on mount)
   useEffect(() => {
     const fetchLeads = async () => {
       try {
         setLoading(true);
-        const clientId = user?.uid || demoClientId;
+        // Always use demoClientId for this demo
+        const clientId = demoClientId;
 
         const response = await fetch(`${API_BASE_URL}/api/leads/${clientId}`, {
           method: 'GET',
@@ -65,6 +66,7 @@ export function Leads() {
 
         if (response.ok) {
           const data = await response.json();
+          console.log('[LEADS] Fetched leads:', data.leads?.length || 0);
           setLeads(data.leads || []);
         } else {
           console.error('Failed to fetch leads');
@@ -78,10 +80,9 @@ export function Leads() {
       }
     };
 
-    if (user?.uid || demoClientId) {
-      fetchLeads();
-    }
-  }, [user?.uid]);
+    // Only fetch once on component mount
+    fetchLeads();
+  }, []);
 
   // Filter leads
   const filteredLeads = leads.filter(lead => {

@@ -32,12 +32,13 @@ export function Conversations() {
 
   const demoClientId = 'gxx8SK6WQHfd9xZ2HOLUW3PDFGE3';
 
-  // Fetch conversations
+  // Fetch conversations (once on mount)
   useEffect(() => {
     const fetchConversations = async () => {
       try {
         setLoading(true);
-        const clientId = user?.uid || demoClientId;
+        // Always use demoClientId for this demo
+        const clientId = demoClientId;
 
         const response = await fetch(`${API_BASE_URL}/api/conversations/${clientId}`, {
           method: 'GET',
@@ -48,6 +49,7 @@ export function Conversations() {
 
         if (response.ok) {
           const data = await response.json();
+          console.log('[CONVERSATIONS] Fetched:', data.conversations?.length || 0);
           setConversations(data.conversations || []);
         } else {
           console.error('Failed to fetch conversations');
@@ -61,10 +63,9 @@ export function Conversations() {
       }
     };
 
-    if (user?.uid || demoClientId) {
-      fetchConversations();
-    }
-  }, [user?.uid]);
+    // Only fetch once on component mount
+    fetchConversations();
+  }, []);
 
   const filteredConversations = conversations.filter(conv =>
     conv.id.toLowerCase().includes(searchTerm.toLowerCase())
