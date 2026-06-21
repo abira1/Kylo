@@ -155,17 +155,6 @@ app.post('/api/chat', async (req, res) => {
 });
 
 /**
- * Health check endpoint
- */
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    claudeApiConfigured: !!process.env.CLAUDE_API_KEY,
-  });
-});
-
-/**
  * FILE UPLOAD ENDPOINT
  * Handles document uploads with OCR simulation
  */
