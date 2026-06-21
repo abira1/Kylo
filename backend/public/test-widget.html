@@ -350,7 +350,8 @@
             publicKey: 'pk_live_qojXCecrM9DZpm6X5O4T',
             position: 'bottom-right',
             apiBase: 'https://kylo-production.up.railway.app',
-            debug: true
+            debug: true,
+            cacheBust: Date.now() // Force cache refresh
         };
 
         // Initialize logging
