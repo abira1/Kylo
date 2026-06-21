@@ -494,6 +494,40 @@ async function saveFileMetadata(clientId, conversationId, fileData) {
   }
 }
 
+/**
+ * Delete invalid leads (missing name or phone)
+ */
+async function cleanupInvalidLeads(clientId) {
+  try {
+    console.log(`[FIREBASE CLEANUP] Starting cleanup for client: ${clientId}`);
+    
+    const leadsRef = db.collection('leads').doc(clientId).collection('items');
+    const snapshot = await leadsRef.get();
+    
+    let deleted = 0;
+    const batch = db.batch();
+    
+    for (const doc of snapshot.docs) {
+      const lead = doc.data();
+      const hasName = lead.name && lead.name.trim();
+      const hasPhone = lead.phone && lead.phone.trim();
+      
+      if (!hasName || !hasPhone) {
+        console.log(`[FIREBASE CLEANUP] Deleting invalid: "${lead.name}" (phone: "${lead.phone}")`);
+        batch.delete(doc.ref);
+        deleted++;
+      }
+    }
+    
+    await batch.commit();
+    console.log(`[FIREBASE CLEANUP] Deleted ${deleted} invalid leads for ${clientId}`);
+    return { deleted, total: snapshot.size };
+  } catch (error) {
+    console.error('[FIREBASE CLEANUP] Error:', error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   db,
   auth,
@@ -512,5 +546,6 @@ module.exports = {
   getLead,
   updateLead,
   deleteLead,
-  saveFileMetadata
+  saveFileMetadata,
+  cleanupInvalidLeads
 };

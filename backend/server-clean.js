@@ -9,7 +9,7 @@ console.log('='.repeat(70) + '\n');
 
 // Import services and routes
 const { buildSystemPrompt, validateClientAccess } = require('./services/multiTenantService');
-const { saveConversation, getConversation, getLeads, saveLead, updateLead, getConversations, saveFileMetadata } = require('./services/firebaseService');
+const { saveConversation, getConversation, getLeads, saveLead, updateLead, getConversations, saveFileMetadata, cleanupInvalidLeads } = require('./services/firebaseService');
 const kbRoutes = require('./routes/knowledgeBase');
 const adminKbRoutes = require('./routes/admin-kb-upload');
 const kyloAIRoutes = require('./routes/kylo-ai-sessions');
@@ -421,37 +421,19 @@ app.delete('/api/cleanup/invalid-leads/:clientId', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    console.log(`[CLEANUP] Starting invalid leads cleanup for client: ${clientId}`);
+    console.log(`[API CLEANUP] Processing cleanup request for: ${clientId}`);
     
-    const leadsRef = db.collection('leads').doc(clientId).collection('items');
-    const snapshot = await leadsRef.get();
-    
-    let deleted = 0;
-    const batch = db.batch();
-    
-    for (const doc of snapshot.docs) {
-      const lead = doc.data();
-      const hasName = lead.name && lead.name.trim();
-      const hasPhone = lead.phone && lead.phone.trim();
-      
-      if (!hasName || !hasPhone) {
-        console.log(`[CLEANUP] Deleting invalid lead: "${lead.name}" (phone: "${lead.phone}")`);
-        batch.delete(doc.ref);
-        deleted++;
-      }
-    }
-    
-    await batch.commit();
-    console.log(`[CLEANUP] Deleted ${deleted} invalid leads`);
+    const result = await cleanupInvalidLeads(clientId);
     
     res.json({
       success: true,
-      deletedCount: deleted,
-      message: `Removed ${deleted} invalid leads`
+      deletedCount: result.deleted,
+      totalLeads: result.total,
+      message: `Removed ${result.deleted} invalid leads from ${result.total} total`
     });
     
   } catch (error) {
-    console.error('[CLEANUP ERROR]', error.message);
+    console.error('[API CLEANUP ERROR]', error.message);
     res.status(500).json({ error: error.message });
   }
 });
