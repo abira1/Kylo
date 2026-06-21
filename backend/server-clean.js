@@ -105,8 +105,9 @@ app.post('/api/chat', async (req, res) => {
     console.log(`[CHAT] Client validated: ${client.name}`);
 
     // Build system prompt WITH client-specific context
-    const systemPrompt = await buildSystemPrompt(clientId, qaContext);
-    console.log('[CHAT] System prompt built');
+    // Pass message count to determine which prompt to use
+    const systemPrompt = await buildSystemPrompt(clientId, qaContext, messages.length);
+    console.log('[CHAT] System prompt built (message count:', messages.length, ')');
 
     // Prepare messages
     const claudeMessages = messages.map(m => ({
@@ -187,7 +188,7 @@ app.post('/api/test-upload', async (req, res) => {
  */
 app.post('/api/upload', async (req, res) => {
   try {
-    const { clientId, conversationId, fileData, fileName, fileType } = req.body;
+    const { clientId, conversationId, fileData, fileName, fileType, documentType } = req.body;
 
     // Validate
     if (!clientId || !fileName || !fileData) {
@@ -195,30 +196,84 @@ app.post('/api/upload', async (req, res) => {
     }
 
     await validateClientAccess(clientId);
-    console.log(`[UPLOAD] File: ${fileName} for client ${clientId}`);
+    console.log(`[UPLOAD] File: ${fileName} for client ${clientId}, type: ${documentType}`);
 
-    // Simulate OCR extraction based on file type
+    // Extract data using Claude's vision capabilities for images
     let extractedData = {};
 
-    if (fileType.includes('image') || fileName.endsWith('.pdf')) {
-      // Simulate passport/document extraction
+    if (fileType.includes('image') && documentType === 'passport') {
+      try {
+        // Use Claude's vision to analyze the passport image
+        console.log('[UPLOAD] Using Claude vision to extract passport data...');
+        
+        const response = await anthropicClient.messages.create({
+          model: 'claude-opus-4-5-20251101',
+          max_tokens: 500,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'image',
+                  source: {
+                    type: 'base64',
+                    media_type: fileType || 'image/jpeg',
+                    data: fileData
+                  }
+                },
+                {
+                  type: 'text',
+                  text: `Please extract passport information from this image. Return ONLY a JSON object with these fields (extract only what you can clearly see):
+{
+  "fullName": "",
+  "passportNumber": "",
+  "dateOfBirth": "",
+  "nationality": "",
+  "gender": "",
+  "expiryDate": "",
+  "issueDate": "",
+  "placeOfBirth": "",
+  "confidence": 0.0
+}
+Return ONLY the JSON, no other text.`
+                }
+              ]
+            }
+          ]
+        });
+
+        try {
+          const extractedText = response.content[0].type === 'text' ? response.content[0].text : '{}';
+          extractedData = JSON.parse(extractedText);
+          console.log('[UPLOAD] Claude extracted passport data:', Object.keys(extractedData));
+        } catch (parseError) {
+          console.log('[UPLOAD] Could not parse Claude response, using fallback');
+          // Fallback to generic extraction if parsing fails
+          extractedData = {
+            documentType: 'passport',
+            confidence: 0.5,
+            note: 'Could not extract text from image. Please try a clearer image.'
+          };
+        }
+      } catch (visionError) {
+        console.error('[UPLOAD] Vision extraction failed:', visionError.message);
+        extractedData = {
+          documentType: 'passport',
+          error: 'Could not analyze image',
+          confidence: 0
+        };
+      }
+    } else if (fileType.includes('image') || fileName.endsWith('.pdf')) {
+      // Fallback: Simulate OCR extraction
       extractedData = {
-        documentType: 'passport', // Would be detected from actual OCR
-        name: 'Ahmed Al Mansouri', // Would be extracted from actual OCR
-        passportNumber: 'UAE12345678',
-        dateOfBirth: '1990-05-15',
-        nationality: 'UAE',
-        gender: 'M',
-        expiryDate: '2030-05-15',
-        issueDate: '2020-05-15',
-        confidence: 0.92 // OCR confidence score
+        documentType: documentType || 'document',
+        note: 'Image received. Please confirm the extracted information or provide details manually.'
       };
-      
-      console.log('[UPLOAD] Simulated OCR extraction for passport');
+      console.log('[UPLOAD] Using simulated extraction for document');
     } else if (fileType.includes('word') || fileType.includes('document')) {
       extractedData = {
         documentType: 'document',
-        text: 'Document content extracted via OCR',
+        text: 'Document content extracted',
         pages: 1,
         language: 'en'
       };

@@ -1,5 +1,6 @@
 const { getOrCreateClient, getMergedKB } = require('./firebaseService');
 const { buildWebSystemPrompt } = require('../prompts/uaeAgentSystemPrompt');
+const { PASSPORT_COLLECTION_PROMPT } = require('../prompts/passportCollectionPrompt');
 
 /**
  * Convert array or object to array
@@ -13,10 +14,29 @@ function toArray(value) {
 /**
  * Build system prompt with client-specific context
  */
-async function buildSystemPrompt(clientId, qaContext = []) {
+async function buildSystemPrompt(clientId, qaContext = [], messageCount = 0) {
   try {
     const client = await getOrCreateClient(clientId);
     const kb = await getMergedKB(clientId);
+
+    // For new conversations (0-2 messages), use the simpler passport collection prompt
+    // This allows users to choose between upload or manual entry
+    if (messageCount <= 2) {
+      let passportPrompt = PASSPORT_COLLECTION_PROMPT;
+      
+      // Add any client-specific knowledge to the passport prompt
+      const allQA = [...toArray(qaContext), ...toArray(kb?.faqs || [])];
+      if (allQA.length > 0) {
+        passportPrompt += '\n\nKNOWLEDGE BASE:\n';
+        allQA.forEach((item, i) => {
+          const q = item?.question || 'Unknown question';
+          const a = item?.answer || 'Unknown answer';
+          passportPrompt += `${i + 1}. Q: ${q}\nA: ${a}\n\n`;
+        });
+      }
+      
+      return passportPrompt;
+    }
 
     // Merge provided qaContext with merged KB - ensure arrays
     const allQA = [...toArray(qaContext), ...toArray(kb?.faqs || [])];
