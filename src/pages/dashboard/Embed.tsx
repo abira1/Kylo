@@ -960,7 +960,7 @@ export function Embed() {
                             onMouseLeave={(e) => {
                               e.currentTarget.style.backgroundColor = 'transparent';
                             }}>
-                            {option}
+                            <span className="inline">{parseMessageText(option)}</span>
                             <ChevronRight size={14} className="inline ml-2" />
                           </button>
                         ))}
