@@ -352,16 +352,23 @@ app.get('/api/leads/:clientId', async (req, res) => {
  */
 app.post('/api/leads', async (req, res) => {
   try {
+    console.log('[LEADS POST] Received request body:', JSON.stringify(req.body).substring(0, 200) + '...');
+    
     const { clientId, leadData } = req.body;
 
     if (!clientId) {
+      console.error('[LEADS POST] Missing clientId');
       return res.status(400).json({ error: 'clientId is required' });
     }
 
+    console.log(`[LEADS POST] Validating client access for: ${clientId}`);
     await validateClientAccess(clientId);
+    console.log(`[LEADS POST] Client validation passed`);
     
+    console.log('[LEADS POST] Calling saveLead function...');
     const { saveLead } = require('./services/firebaseService');
     const lead = await saveLead(clientId, leadData);
+    console.log('[LEADS POST] Lead saved successfully:', lead.id);
 
     res.json({
       success: true,
@@ -370,8 +377,8 @@ app.post('/api/leads', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[SAVE LEAD ERROR]', error.message);
-    res.status(500).json({ error: error.message });
+    console.error('[LEADS POST ERROR]', error.message, error.stack);
+    res.status(500).json({ error: error.message, stack: error.stack });
   }
 });
 

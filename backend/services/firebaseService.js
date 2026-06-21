@@ -252,7 +252,9 @@ async function deleteKBItem(clientId, itemId) {
  */
 async function saveLead(clientId, leadData) {
   try {
+    console.log(`[FIREBASE SAVESLEAD] Starting save for client: ${clientId}`);
     const leadId = `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`[FIREBASE SAVESLEAD] Generated leadId: ${leadId}`);
     
     const lead = {
       id: leadId,
@@ -267,22 +269,31 @@ async function saveLead(clientId, leadData) {
       extractedData: leadData.extractedData || {},
       documentUploads: leadData.documentUploads || [],
       status: leadData.status || 'new', // new, qualified, contacted, won, lost
-      source: 'chat', // or 'form', 'whatsapp', etc
+      source: leadData.source || 'chat', // or 'form', 'whatsapp', etc
       createdAt: admin.firestore.Timestamp.now(),
       updatedAt: admin.firestore.Timestamp.now(),
       notes: leadData.notes || ''
     };
 
+    console.log(`[FIREBASE SAVESLEAD] Lead object created:`, {
+      id: lead.id,
+      name: lead.name,
+      email: lead.email,
+      source: lead.source,
+      status: lead.status
+    });
+
+    console.log(`[FIREBASE SAVESLEAD] Writing to Firestore path: /leads/${clientId}/items/${leadId}`);
     await db.collection('leads')
       .doc(clientId)
       .collection('items')
       .doc(leadId)
       .set(lead);
 
-    console.log(`[FIREBASE] Lead saved: ${leadId} for client ${clientId}`);
+    console.log(`[FIREBASE SAVESLEAD] ✓ Lead successfully saved: ${leadId} for client ${clientId}`);
     return lead;
   } catch (error) {
-    console.error('[FIREBASE] Error saving lead:', error.message);
+    console.error('[FIREBASE SAVESLEAD] Error saving lead:', error.message, error.stack);
     throw error;
   }
 }
@@ -292,6 +303,8 @@ async function saveLead(clientId, leadData) {
  */
 async function getLeads(clientId, limit = 50) {
   try {
+    console.log(`[FIREBASE GETLEADS] Fetching leads for client: ${clientId}, limit: ${limit}`);
+    
     const snapshot = await db.collection('leads')
       .doc(clientId)
       .collection('items')
@@ -299,14 +312,27 @@ async function getLeads(clientId, limit = 50) {
       .limit(limit)
       .get();
 
-    return snapshot.docs.map(doc => ({
+    const leads = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
       createdAt: doc.data().createdAt?.toDate?.() || new Date(),
       updatedAt: doc.data().updatedAt?.toDate?.() || new Date()
     }));
+
+    console.log(`[FIREBASE GETLEADS] ✓ Retrieved ${leads.length} leads for client: ${clientId}`);
+    if (leads.length > 0) {
+      console.log(`[FIREBASE GETLEADS] First lead:`, {
+        id: leads[0].id,
+        name: leads[0].name,
+        email: leads[0].email,
+        source: leads[0].source,
+        createdAt: leads[0].createdAt
+      });
+    }
+    
+    return leads;
   } catch (error) {
-    console.error('[FIREBASE] Error getting leads:', error.message);
+    console.error('[FIREBASE GETLEADS] Error getting leads:', error.message, error.stack);
     return [];
   }
 }

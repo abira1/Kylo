@@ -164,13 +164,16 @@ export function Embed() {
   /**
    * Auto-save lead to Firestore when enough data is collected
    */
-  const autoSaveLead = async () => {
-    if (leadSaved || !hasEnoughLeadData()) {
-      return;
+  const autoSaveLead = async (forceSource?: string) => {
+    // Don't prevent duplicate saves - allow overwriting with new data
+    if (!hasEnoughLeadData()) {
+      console.log('[LEAD] Not enough data to save:', conversationContext);
+      return false;
     }
 
     try {
       const clientId = user?.uid || demoClientId;
+      console.log('[LEAD] Attempting auto-save for client:', clientId);
       
       const leadData = {
         conversationId,
@@ -184,9 +187,11 @@ export function Embed() {
         dateOfBirth: conversationContext.dateOfBirth || '',
         extractedData: conversationContext,
         status: 'new',
-        source: conversationContext.passportNumber ? 'passport_upload' : 'chat',
+        source: forceSource || (conversationContext.passportNumber ? 'passport_upload' : 'chat'),
         notes: `Lead auto-captured. Extracted: ${Object.keys(conversationContext).filter(k => conversationContext[k]).join(', ')}`
       };
+
+      console.log('[LEAD] Sending POST request to /api/leads with data:', leadData);
 
       const response = await fetch(`${API_BASE_URL}/api/leads`, {
         method: 'POST',
@@ -194,24 +199,40 @@ export function Embed() {
         body: JSON.stringify({ clientId, leadData }),
       });
 
+      console.log('[LEAD] Response status:', response.status);
+      const responseData = await response.json();
+      console.log('[LEAD] Response data:', responseData);
+
       if (response.ok) {
-        const data = await response.json();
         setLeadSaved(true);
-        console.log('[LEAD] Auto-saved:', data.leadId);
+        console.log('[LEAD] ✓ Auto-saved successfully:', responseData.leadId);
         
-        // Show subtle notification
+        // Show success message
         setMessages((prev) => [...prev, {
           id: `auto_save_${Date.now()}`,
-          text: `✓ Your information has been saved to our system (Reference: ${data.leadId?.slice(0, 8)}...)`,
+          text: `✓ Your information has been saved to our system\n(Reference: ${responseData.leadId?.slice(0, 12)}...)`,
           isBot: true,
         }]);
         
         return true;
+      } else {
+        console.error('[LEAD] Save failed with status:', response.status, responseData);
+        setMessages((prev) => [...prev, {
+          id: `save_error_${Date.now()}`,
+          text: `⚠ There was an issue saving your information. Error: ${responseData.error || 'Unknown error'}`,
+          isBot: true,
+        }]);
+        return false;
       }
     } catch (error) {
       console.error('[LEAD] Auto-save error:', error);
+      setMessages((prev) => [...prev, {
+        id: `save_error_${Date.now()}`,
+        text: `⚠ Error saving your information: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        isBot: true,
+      }]);
+      return false;
     }
-    return false;
   };
 
   /**
@@ -534,10 +555,11 @@ export function Embed() {
                 }
               ]);
 
-              // Auto-save after extraction with data confirmation
+              // IMMEDIATELY save the extracted lead data - don't wait for user confirmation
+              console.log('[PASSPORT] Extracted data ready, auto-saving immediately...');
               setTimeout(() => {
-                autoSaveLead();
-              }, 1000);
+                autoSaveLead('passport_upload');
+              }, 500);
             } else {
               // Data was extracted but empty after filtering
               setMessages(prev => [
