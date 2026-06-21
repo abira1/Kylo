@@ -59,6 +59,21 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: '10mb' }));
 
+// Serve static files (widget.js, etc.)
+const path = require('path');
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, filePath) => {
+    // Cache widget.js for 1 hour
+    if (filePath.endsWith('.js')) {
+      res.set('Cache-Control', 'public, max-age=3600');
+    }
+    // Allow CORS for widget.js
+    res.set('Access-Control-Allow-Origin', '*');
+  }
+}));
+
+console.log('[STARTUP] Static file serving enabled from /public');
+
 /**
  * UTILITY: Generate a public widget key
  * Format: pk_live_[random alphanumeric]
@@ -129,6 +144,20 @@ app.get('/api/health', (req, res) => {
     version: '2.0-with-lead-persistence',
     diagnostic: 'THIS_IS_SERVER_CLEAN_JS_LATEST'
   });
+});
+
+/**
+ * EMBED PAGE ENDPOINT
+ * Serves the iframe page for the chat widget
+ * URL: /embed?publicKey=pk_live_...&agent=AgentName
+ */
+app.get('/embed', (req, res) => {
+  res.set('Content-Type', 'text/html; charset=utf-8');
+  res.set('X-Frame-Options', 'ALLOWALL');
+  res.set('Access-Control-Allow-Origin', '*');
+  
+  const embedPath = path.join(__dirname, 'public', 'embed.html');
+  res.sendFile(embedPath);
 });
 
 /**
