@@ -155,9 +155,24 @@ app.post('/api/chat', async (req, res) => {
 });
 
 /**
- * FILE UPLOAD ENDPOINT
- * Handles document uploads with OCR simulation
+ * SIMPLE TEST ENDPOINT
+ * Test if Express can register this route
  */
+app.post('/api/test-upload', async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      message: 'TEST ENDPOINT WORKS'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * FILE UPLOAD ENDPOINT (COMMENTED OUT FOR DIAGNOSTIC)
+ * Handles document uploads with OCR simulation
+ *
 app.post('/api/upload', async (req, res) => {
   try {
     const { clientId, conversationId, fileData, fileName, fileType } = req.body;
@@ -220,6 +235,7 @@ app.post('/api/upload', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+*/
 
 /**
  * GET LEADS ENDPOINT
