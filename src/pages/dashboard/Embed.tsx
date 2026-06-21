@@ -167,7 +167,7 @@ export function Embed() {
   const autoSaveLead = async (forceSource?: string) => {
     // Prevent duplicate saves - check if already saved
     if (leadSaved) {
-      console.log('[LEAD] Lead already saved, skipping duplicate save');
+      console.log('[LEAD] ⚠️ Lead already saved, skipping duplicate save (leadSaved flag is TRUE)');
       return false;
     }
 
@@ -178,7 +178,9 @@ export function Embed() {
 
     try {
       const clientId = user?.uid || demoClientId;
-      console.log('[LEAD] Attempting auto-save for client:', clientId);
+      console.log('[LEAD] 📤 Attempting auto-save for client:', clientId, '| conversationId:', conversationId);
+      console.log('[LEAD] Current leadSaved flag:', leadSaved);
+      console.log('[LEAD] Source:', forceSource || (conversationContext.passportNumber ? 'passport_upload' : 'chat'));
       
       const leadData = {
         conversationId,
@@ -210,7 +212,10 @@ export function Embed() {
 
       if (response.ok) {
         setLeadSaved(true);
-        console.log('[LEAD] ✓ Auto-saved successfully:', responseData.leadId);
+        console.log('[LEAD] ✅ Auto-saved successfully!');
+        console.log('[LEAD] Response leadId:', responseData.leadId);
+        console.log('[LEAD] ConversationId for this lead:', conversationId);
+        console.log('[LEAD] Next autoSaveLead call will skip (leadSaved=true)');
         
         // Show success message
         setMessages((prev) => [...prev, {
