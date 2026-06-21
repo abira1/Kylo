@@ -182,9 +182,9 @@ app.post('/api/test-upload', async (req, res) => {
 });
 
 /**
- * FILE UPLOAD ENDPOINT (COMMENTED OUT FOR DIAGNOSTIC)
+ * FILE UPLOAD ENDPOINT
  * Handles document uploads with OCR simulation
- *
+ */
 app.post('/api/upload', async (req, res) => {
   try {
     const { clientId, conversationId, fileData, fileName, fileType } = req.body;
