@@ -56,6 +56,18 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 
 /**
+ * HEALTH CHECK ENDPOINT
+ * Simple health check to verify server is running
+ */
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    version: '2.0-with-lead-persistence'
+  });
+});
+
+/**
  * MULTI-TENANT CHAT ENDPOINT
  * Accepts: clientId, conversationId, messages
  */
