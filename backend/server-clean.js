@@ -125,10 +125,19 @@ app.post('/api/chat', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[ERROR]', error.message);
+    console.error('[ERROR] Chat endpoint error:', {
+      message: error.message,
+      status: error.status,
+      type: error.type,
+      fullError: JSON.stringify(error, null, 2)
+    });
     res.status(500).json({
       error: 'Failed to process chat message',
-      details: error.message,
+      details: {
+        message: error.message,
+        status: error.status,
+        type: error.type
+      }
     });
   }
 });
