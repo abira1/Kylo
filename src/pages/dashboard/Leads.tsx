@@ -216,7 +216,12 @@ export function Leads() {
             Lead Inbox
           </h1>
           <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 font-medium">
-            Manage and qualify leads captured by your AI. ({filteredLeads.length} leads)
+            Manage and qualify leads captured by your AI. ({filteredLeads.length} of {leads.length} leads)
+            {(searchTerm || statusFilter !== 'all') && (
+              <span className="text-xs ml-2 text-orange-600 dark:text-orange-400">
+                🔍 Filtered
+              </span>
+            )}
           </p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
@@ -264,6 +269,18 @@ export function Leads() {
               <option value="won">Won</option>
               <option value="lost">Lost</option>
             </select>
+            {(searchTerm || statusFilter !== 'all') && (
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setStatusFilter('all');
+                  console.log('[LEADS] Cleared all filters');
+                }}
+                className="btn-secondary text-xs sm:text-sm py-2 px-3 w-auto hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
+                title="Clear all filters">
+                ✕ Clear
+              </button>
+            )}
           </div>
         </div>
 
@@ -283,9 +300,26 @@ export function Leads() {
             <div className="text-center">
               <Mail className="mx-auto mb-3 text-gray-300 dark:text-gray-600" size={48} />
               <p className="text-gray-500 dark:text-gray-400">No leads found</p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                {searchTerm ? 'Try adjusting your search' : 'Leads will appear here when captured from chats'}
-              </p>
+              {(searchTerm || statusFilter !== 'all') ? (
+                <div className="text-xs text-gray-400 dark:text-gray-500 mt-2 space-y-1">
+                  <p>Active filters:</p>
+                  {searchTerm && <p>🔍 Search: "{searchTerm}"</p>}
+                  {statusFilter !== 'all' && <p>📊 Status: {statusFilter}</p>}
+                  <button
+                    onClick={() => {
+                      setSearchTerm('');
+                      setStatusFilter('all');
+                      console.log('[LEADS] Cleared all filters');
+                    }}
+                    className="text-cyan-600 dark:text-cyan-400 hover:underline mt-2 font-medium">
+                    Clear all filters
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  {leads.length > 0 ? 'All leads are currently hidden by filters' : 'Leads will appear here when captured from chats'}
+                </p>
+              )}
             </div>
           </div>
         )}
