@@ -94,7 +94,7 @@ app.post('/api/chat', async (req, res) => {
 
     // Call Claude
     const response = await anthropicClient.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-3-5-haiku-20241022',
       max_tokens: 1024,
       system: systemPrompt,
       messages: claudeMessages,
