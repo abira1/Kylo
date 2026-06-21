@@ -113,6 +113,9 @@ export function Embed() {
   const [welcomeMsg, setWelcomeMsg] = useState('Hi there! How can I help you today?');
   const [primaryColor, setPrimaryColor] = useState('#06b6d4');
   
+  // Conversation ID for localStorage key
+  const [conversationId] = useState(() => `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  
   // Chat state - now conversational, not form-based
   const [isWidgetOpen, setIsWidgetOpen] = useState(true);
   const [messages, setMessages] = useState<Message[]>([
@@ -126,7 +129,6 @@ export function Embed() {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [conversationId] = useState(() => `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [conversationContext, setConversationContext] = useState<ConversationContext>({});
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
@@ -150,6 +152,32 @@ export function Embed() {
     subscribe,
     []
   );
+
+  // Load messages from localStorage on mount
+  useEffect(() => {
+    try {
+      const storageKey = `kylo_chat_${conversationId}`;
+      const savedMessages = localStorage.getItem(storageKey);
+      if (savedMessages) {
+        const parsedMessages = JSON.parse(savedMessages);
+        console.log('[CHAT] Loaded messages from cache:', parsedMessages.length);
+        setMessages(parsedMessages);
+      }
+    } catch (error) {
+      console.error('[CHAT] Error loading messages from cache:', error);
+    }
+  }, [conversationId]);
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    try {
+      const storageKey = `kylo_chat_${conversationId}`;
+      localStorage.setItem(storageKey, JSON.stringify(messages));
+      console.log('[CHAT] Saved messages to cache:', messages.length);
+    } catch (error) {
+      console.error('[CHAT] Error saving messages to cache:', error);
+    }
+  }, [messages, conversationId]);
 
   // Auto-scroll chat
   useEffect(() => {
