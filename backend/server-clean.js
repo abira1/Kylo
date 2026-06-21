@@ -9,7 +9,7 @@ console.log('='.repeat(70) + '\n');
 
 // Import services and routes
 const { buildSystemPrompt, validateClientAccess } = require('./services/multiTenantService');
-const { saveConversation, getConversation } = require('./services/firebaseService');
+const { saveConversation, getConversation, getLeads, saveLead, updateLead, getConversations, saveFileMetadata } = require('./services/firebaseService');
 const kbRoutes = require('./routes/knowledgeBase');
 const adminKbRoutes = require('./routes/admin-kb-upload');
 const kyloAIRoutes = require('./routes/kylo-ai-sessions');
@@ -260,13 +260,14 @@ app.get('/api/leads/:clientId', async (req, res) => {
 
     console.log('[DIAGNOSTIC] clientId:', clientId);
 
-    // Temporary: return mock data without calling Firestore
+    // Use firebaseService to fetch actual leads
+    const leads = await getLeads(clientId, parseInt(limit));
+
     res.json({
       success: true,
-      diagnostic: 'Testing if route is registered',
       clientId,
-      count: 0,
-      leads: []
+      count: leads.length,
+      leads
     });
 
   } catch (error) {
