@@ -68,6 +68,13 @@ app.get('/api/health', (req, res) => {
 });
 
 /**
+ * SIMPLE TEST ENDPOINT - moved before /api/chat
+ */
+app.post('/api/test-endpoint', async (req, res) => {
+  res.json({ message: 'This endpoint is before /api/chat' });
+});
+
+/**
  * MULTI-TENANT CHAT ENDPOINT
  * Accepts: clientId, conversationId, messages
  */
