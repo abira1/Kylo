@@ -15,7 +15,8 @@ import {
   Upload,
   Download,
   File,
-  BookOpen
+  BookOpen,
+  ExternalLink
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useRealtimeData } from '../../hooks/useData';
@@ -1178,12 +1179,23 @@ app.mount('#app')
               <Settings2 className="text-emerald-500 dark:text-cyan-400" size={20} />
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">Interactive Preview</h2>
             </div>
-            <button
-              onClick={handleResetChat}
-              className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-800 rounded-lg transition-colors"
-              title="Reset Chat">
-              <RefreshCw size={16} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const url = `https://kylo-production.up.railway.app/test-widget.html?publicKey=${publicWidgetKey}`;
+                  window.open(url, '_blank');
+                }}
+                className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-800 rounded-lg transition-colors"
+                title="Open Full Preview in New Tab">
+                <ExternalLink size={16} />
+              </button>
+              <button
+                onClick={handleResetChat}
+                className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-800 rounded-lg transition-colors"
+                title="Reset Chat">
+                <RefreshCw size={16} />
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 bg-gray-50 dark:bg-navy-950 relative overflow-hidden">
