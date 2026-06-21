@@ -270,21 +270,8 @@ export function Embed() {
       };
       setMessages((prev) => [...prev, fileMsg]);
 
-      // TODO: Upload to backend, extract if passport, autofill
-      // For now, simulate with a message
-      setTimeout(() => {
-        const confirmMsg: Message = {
-          id: (Date.now() + 1).toString(),
-          text: `✓ Got your ${fileName}! Analyzing the document...`,
-          isBot: true,
-        };
-        setMessages((prev) => [...prev, confirmMsg]);
-
-        // Simulate next question after processing
-        setTimeout(() => {
-          handleSendMessage(`I've uploaded the file: ${fileName}. Please continue with the next step.`);
-        }, 1500);
-      }, 1000);
+      // Upload file to backend
+      await uploadFile(file);
 
       setUploadingFile(false);
     } catch (error) {
@@ -295,6 +282,107 @@ export function Embed() {
     // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  /**
+   * Save lead to backend/Firestore
+   */
+  const saveLead = async () => {
+    try {
+      const clientId = user?.uid || demoClientId;
+      
+      // Extract lead data from conversation
+      const leadData = {
+        conversationId,
+        messages: messages,
+        name: conversationContext.name || 'Unknown',
+        email: conversationContext.email || '',
+        phone: conversationContext.phone || '',
+        country: conversationContext.country || '',
+        businessType: conversationContext.businessType || '',
+        extractedData: conversationContext,
+        status: 'new',
+        notes: `Lead captured from chat widget. Total messages: ${messages.length}`
+      };
+
+      const response = await fetch(`${API_BASE_URL}/api/leads`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          clientId,
+          leadData
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[LEAD] Saved successfully:', data.leadId);
+        return data.leadId;
+      } else {
+        console.error('[LEAD] Failed to save');
+      }
+    } catch (error) {
+      console.error('[LEAD] Save error:', error);
+    }
+  };
+
+  /**
+   * Handle file upload to backend
+   */
+  const uploadFile = async (file: File) => {
+    try {
+      const clientId = user?.uid || demoClientId;
+      const reader = new FileReader();
+
+      reader.onload = async (e) => {
+        const fileData = e.target?.result as string;
+        const base64Data = fileData.split(',')[1]; // Remove data URL prefix
+
+        const response = await fetch(`${API_BASE_URL}/api/upload`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            clientId,
+            conversationId,
+            fileName: file.name,
+            fileType: file.type,
+            fileData: base64Data
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[UPLOAD] Success:', data);
+          
+          // Auto-extract passport data if available
+          if (data.extractedData) {
+            setConversationContext(prev => ({
+              ...prev,
+              ...data.extractedData
+            }));
+
+            // Show extracted data confirmation
+            const confirmMsg: Message = {
+              id: (Date.now() + 2).toString(),
+              text: `✓ Document processed! I extracted the following information:\n\n${Object.entries(data.extractedData)
+                .map(([key, value]) => `• ${key}: ${value}`)
+                .join('\n')}`,
+              isBot: true,
+            };
+            setMessages(prev => [...prev, confirmMsg]);
+          }
+        }
+      };
+
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('[UPLOAD] Error:', error);
+      setApiError('File upload failed');
     }
   };
 
