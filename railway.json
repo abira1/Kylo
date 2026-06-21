@@ -2,10 +2,10 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "nixpacks",
-    "buildCommand": "cd backend && npm install && echo 'Force rebuild v2'"
+    "buildCommand": "cd backend && npm install"
   },
   "deploy": {
-    "startCommand": "cd backend && node server-minimal.js",
+    "startCommand": "cd backend && node server-clean.js",
     "restartPolicyMaxRetries": 10
   }
 }

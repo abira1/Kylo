@@ -3,6 +3,10 @@ require('dotenv').config();
 const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk');
 
+console.log('\n' + '='.repeat(70));
+console.log('🚀 DIAGNOSTIC: server-clean.js loaded at', new Date().toISOString());
+console.log('='.repeat(70) + '\n');
+
 // Import services and routes
 const { buildSystemPrompt, validateClientAccess } = require('./services/multiTenantService');
 const { saveConversation, getConversation } = require('./services/firebaseService');
@@ -63,7 +67,8 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    version: '2.0-with-lead-persistence'
+    version: '2.0-with-lead-persistence',
+    diagnostic: 'THIS_IS_SERVER_CLEAN_JS_LATEST'
   });
 });
 
