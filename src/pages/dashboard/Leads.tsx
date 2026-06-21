@@ -134,23 +134,8 @@ export function Leads() {
     await fetchLeads(true);
   };
 
-  // Filter leads - MUST have name + phone (minimum requirement)
-  const validLeads = leads.filter(lead => {
-    const hasName = lead.name && lead.name.trim();
-    const hasPhone = lead.phone && lead.phone.trim();
-    
-    if (!hasName || !hasPhone) {
-      console.log('[LEADS] Skipping invalid lead (missing name/phone):', { 
-        name: lead.name, 
-        phone: lead.phone 
-      });
-      return false;
-    }
-    return true;
-  });
-
-  // Then apply search/status filters
-  const filteredLeads = validLeads.filter(lead => {
+  // Filter leads by search/status (show ALL leads, regardless of completeness)
+  const filteredLeads = leads.filter(lead => {
     // Debug: Log why leads are filtered
     const matchesSearch = 
       lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -169,7 +154,7 @@ export function Leads() {
     }
     return passes;
   });
-  console.log('[LEADS] Valid:', validLeads.length, 'from', leads.length, '-> Filtered:', filteredLeads.length, '(search:', searchTerm, ', status:', statusFilter, ')');
+  console.log('[LEADS] Filtered:', filteredLeads.length, 'from', leads.length, '(search:', searchTerm, ', status:', statusFilter, ')');
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -239,7 +224,7 @@ export function Leads() {
             Lead Inbox
           </h1>
           <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 font-medium">
-            Manage and qualify leads captured by your AI. ({filteredLeads.length} of {validLeads.length} leads{validLeads.length < leads.length && ` - ${leads.length - validLeads.length} invalid`})
+            Manage and qualify leads captured by your AI. ({filteredLeads.length} of {leads.length} leads)
             {(searchTerm || statusFilter !== 'all') && (
               <span className="text-xs ml-2 text-orange-600 dark:text-orange-400">
                 🔍 Filtered
@@ -340,11 +325,7 @@ export function Leads() {
                 </div>
               ) : (
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                  {leads.length > validLeads.length 
-                    ? `⚠️ ${leads.length - validLeads.length} leads are incomplete (missing name or phone)` 
-                    : validLeads.length > 0
-                    ? 'All leads are currently hidden by filters' 
-                    : 'Leads will appear here when captured from chats'}
+                  {leads.length > 0 ? 'All leads are currently hidden by filters' : 'Leads will appear here when captured from chats'}
                 </p>
               )}
             </div>

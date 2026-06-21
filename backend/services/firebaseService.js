@@ -254,12 +254,6 @@ async function saveLead(clientId, leadData) {
   try {
     console.log(`[FIREBASE SAVESLEAD] Starting save for client: ${clientId}`);
     
-    // Validate minimum required fields
-    if (!leadData.name || !leadData.phone) {
-      console.error(`[FIREBASE SAVESLEAD] ❌ Validation failed - name: '${leadData.name}', phone: '${leadData.phone}'`);
-      throw new Error('Lead requires at least name and phone number');
-    }
-    
     // FAST DUPLICATE CHECK with timeout
     if (leadData.conversationId) {
       try {
