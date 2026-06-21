@@ -22,7 +22,23 @@ interface Message {
   isBot: boolean;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
+// Backend API endpoint configuration
+// Development: localhost backend on port 5001
+// Production: Railway backend at kylo-production.up.railway.app
+const API_BASE_URL = (() => {
+  const isLocalhost = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname.includes('5173')
+  );
+  
+  if (isLocalhost) {
+    return 'http://localhost:5001';
+  }
+  
+  // Production: use Railway backend directly
+  return 'https://kylo-production.up.railway.app';
+})();
 
 export function Embed() {
   const { user } = useAuth();
@@ -152,7 +168,7 @@ export function Embed() {
         ...prev,
         {
           id: (Date.now() + 1).toString(),
-          text: `Sorry, I encountered an error: ${errorMsg}. Make sure the backend server is running on port 5001.`,
+          text: `Sorry, I encountered an error: ${errorMsg}. The backend server may be unavailable.`,
           isBot: true,
         }
       ]);

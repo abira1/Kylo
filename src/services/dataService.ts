@@ -450,3 +450,37 @@ export const getDashboardSummary = async (
     };
   }
 };
+
+/**
+ * WHATSAPP CONFIGURATION
+ */
+
+export interface WhatsAppConfig {
+  phoneNumberId: string;
+  businessAccountId: string;
+  webhookVerifyToken: string;
+  apiAccessToken: string;
+  isConnected: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface WhatsAppMetrics {
+  messagesCount: number;
+  resolutionRate: number;
+  responseTime: string;
+  quotaUsed: number;
+  qualityRating: string;
+}
+
+export const subscribeToWhatsAppConfig = (
+  clientId: string,
+  callback: (data: WhatsAppConfig | null) => void
+): (() => void) => {
+  return subscribeToData(
+    `whatsappConfigs/${clientId}`,
+    (data) => {
+      callback(data as WhatsAppConfig | null);
+    }
+  );
+};
