@@ -47,6 +47,65 @@ const API_BASE_URL = (() => {
   return 'https://kylo-production.up.railway.app';
 })();
 
+/**
+ * Parse markdown-style text and convert to React elements
+ * Supports: **bold**, *italic*, _italic_, newlines, and lists
+ */
+const parseMessageText = (text: string): React.ReactNode => {
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  
+  // Split by newlines first to preserve line breaks
+  const lines = text.split('\n');
+  
+  return lines.map((line, lineIdx) => {
+    const lineParts: React.ReactNode[] = [];
+    let index = 0;
+    
+    // Match **bold**, *italic*, _italic_
+    const regex = /\*\*(.+?)\*\*|\*(.+?)\*|_(.+?)_/g;
+    let match;
+    let lastPos = 0;
+    
+    while ((match = regex.exec(line)) !== null) {
+      // Add text before the match
+      if (match.index > lastPos) {
+        lineParts.push(line.substring(lastPos, match.index));
+      }
+      
+      // Add the formatted text
+      if (match[1]) {
+        // **bold**
+        lineParts.push(<strong key={`bold-${lineIdx}-${match.index}`} className="font-bold">{match[1]}</strong>);
+      } else if (match[2]) {
+        // *italic*
+        lineParts.push(<em key={`italic-${lineIdx}-${match.index}`} className="italic">{match[2]}</em>);
+      } else if (match[3]) {
+        // _italic_
+        lineParts.push(<em key={`italic-${lineIdx}-${match.index}`} className="italic">{match[3]}</em>);
+      }
+      
+      lastPos = regex.lastIndex;
+    }
+    
+    // Add remaining text
+    if (lastPos < line.length) {
+      lineParts.push(line.substring(lastPos));
+    }
+    
+    // If the line is empty or only whitespace, add a space to preserve it
+    if (lineParts.length === 0) {
+      lineParts.push('\u00A0');
+    }
+    
+    return (
+      <div key={`line-${lineIdx}`}>
+        {lineParts}
+      </div>
+    );
+  });
+};
+
 export function Embed() {
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
@@ -877,7 +936,7 @@ export function Embed() {
                               : 'text-white rounded-2xl rounded-tr-sm'
                           }`}
                           style={!msg.isBot ? { backgroundColor: primaryColor } : {}}>
-                          {msg.text}
+                          {parseMessageText(msg.text)}
                         </div>
                       )}
                     </div>
