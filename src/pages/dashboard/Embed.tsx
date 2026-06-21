@@ -110,6 +110,7 @@ const parseMessageText = (text: string): React.ReactNode => {
 export function Embed() {
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
+  const [embedTab, setEmbedTab] = useState<'simple' | 'config' | 'react'>('simple');
   const [botName, setBotName] = useState('Support Assistant');
   const [welcomeMsg, setWelcomeMsg] = useState('Hi there! How can I help you today?');
   const [primaryColor, setPrimaryColor] = useState('#06b6d4');
@@ -245,10 +246,29 @@ export function Embed() {
     position: "bottom-right"
   };
 </script>
-<script src="https://cdn.kylo.ae/widget.js" async></script>`;
+<script src="https://kylo-production.up.railway.app/widget.js" async></script>`;
+
+  // Simplified one-liner version
+  const embedCodeSimple = `<script src="https://kylo-production.up.railway.app/widget.js" data-key="${publicWidgetKey}" async></script>`;
+
+  // React version
+  const embedCodeReact = `useEffect(() => {
+  window.KYLO_CONFIG = {
+    publicKey: "${publicWidgetKey}",
+    position: "bottom-right"
+  };
+  const script = document.createElement('script');
+  script.src = 'https://kylo-production.up.railway.app/widget.js';
+  script.async = true;
+  document.body.appendChild(script);
+}, []);`;
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(embedCode);
+    let codeToCopy = embedCode;
+    if (embedTab === 'simple') codeToCopy = embedCodeSimple;
+    if (embedTab === 'react') codeToCopy = embedCodeReact;
+    
+    navigator.clipboard.writeText(codeToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -890,20 +910,69 @@ export function Embed() {
               <Code className="text-emerald-500 dark:text-cyan-400" size={20} />
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">Installation Code</h2>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 font-medium">
-              Paste this snippet right before the closing{' '}
-              <code className="bg-gray-100 dark:bg-navy-900 px-1.5 py-0.5 rounded-lg text-xs font-mono text-emerald-600 dark:text-cyan-400">
-                &lt;/body&gt;
-              </code>{' '}
-              tag on your website.
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 font-medium">
+              Choose your installation method:
             </p>
-            <p className="text-xs text-gray-500 dark:text-gray-500 mb-4">
-              ✓ Secure public key • ✓ Auto-updating branding • ✓ No re-embedding needed
-            </p>
+
+            {/* Embed Tabs */}
+            <div className="flex gap-2 mb-4 border-b border-gray-200 dark:border-navy-700">
+              <button
+                onClick={() => setEmbedTab('simple')}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  embedTab === 'simple'
+                    ? 'border-emerald-500 text-emerald-600 dark:text-cyan-400'
+                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                🚀 Simplest (1 Line)
+              </button>
+              <button
+                onClick={() => setEmbedTab('config')}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  embedTab === 'config'
+                    ? 'border-emerald-500 text-emerald-600 dark:text-cyan-400'
+                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                ⚙️ With Config
+              </button>
+              <button
+                onClick={() => setEmbedTab('react')}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  embedTab === 'react'
+                    ? 'border-emerald-500 text-emerald-600 dark:text-cyan-400'
+                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                ⚛️ React/Vue
+              </button>
+            </div>
+
+            {/* Tab Descriptions */}
+            {embedTab === 'simple' && (
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3 italic">
+                Perfect for non-developers. Just copy and paste one line. Add position in data-key attribute if needed.
+              </p>
+            )}
+            {embedTab === 'config' && (
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3 italic">
+                Full control over widget position and appearance with window.KYLO_CONFIG.
+              </p>
+            )}
+            {embedTab === 'react' && (
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3 italic">
+                For React, Vue, Next.js, or other modern frameworks. Add to useEffect hook.
+              </p>
+            )}
+
             <div className="relative group">
               <pre className="bg-navy-950 text-gray-300 p-5 rounded-2xl text-xs sm:text-sm overflow-x-auto font-mono shadow-inner border border-navy-800 leading-relaxed">
                 {publicKeyLoading ? (
                   <span className="text-gray-500">Loading public key...</span>
+                ) : embedTab === 'simple' ? (
+                  embedCodeSimple
+                ) : embedTab === 'react' ? (
+                  embedCodeReact
                 ) : (
                   embedCode
                 )}
@@ -961,7 +1030,7 @@ export function Embed() {
       position: "bottom-right"
     {'}'};
   &lt;/script&gt;
-  &lt;script src="https://cdn.kylo.ae/widget.js" async&gt;&lt;/script&gt;
+  &lt;script src="https://kylo-production.up.railway.app/widget.js" async&gt;&lt;/script&gt;
 &lt;/head&gt;
                   </pre>
                 </div>
@@ -991,7 +1060,7 @@ export default function RootLayout() {'{'}
           };}`}
         &lt;/Script&gt;
         &lt;Script 
-          src="https://cdn.kylo.ae/widget.js" 
+          src="https://kylo-production.up.railway.app/widget.js" 
           strategy="afterInteractive"
         /&gt;
       &lt;/body&gt;
@@ -1024,7 +1093,7 @@ window.KYLO_CONFIG = {'{'}
 {'}'};
 
 const script = document.createElement('script');
-script.src = "https://cdn.kylo.ae/widget.js";
+script.src = "https://kylo-production.up.railway.app/widget.js";
 script.async = true;
 document.head.appendChild(script);
 
@@ -1046,7 +1115,7 @@ app.mount('#app')
                       <li>✓ Check browser console (F12) for JavaScript errors</li>
                       <li>✓ Verify script tag is before closing &lt;/body&gt;</li>
                       <li>✓ Ensure KYLO_CONFIG is defined before loading widget.js</li>
-                      <li>✓ Check CDN is accessible: <a href="https://cdn.kylo.ae/widget.js" target="_blank" rel="noopener noreferrer" className="underline text-blue-600">cdn.kylo.ae/widget.js</a></li>
+                      <li>✓ Check backend is running: <a href="https://kylo-production.up.railway.app/api/health" target="_blank" rel="noopener noreferrer" className="underline text-blue-600">kylo-production.up.railway.app/api/health</a></li>
                     </ul>
                   </div>
                   <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
