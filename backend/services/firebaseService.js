@@ -7,12 +7,32 @@ let auth;
 
 function initializeFirebase() {
   try {
-    // Use service account file or environment variables
-    const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || 
-      path.join(__dirname, '../kylo-firebase-key.json');
+    let credential;
+    
+    // Try multiple auth methods in order of preference
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+      // Method 1: Use base64-encoded JSON from environment variable
+      try {
+        const decodedJson = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_JSON, 'base64').toString('utf-8');
+        credential = admin.credential.cert(JSON.parse(decodedJson));
+        console.log('[FIREBASE] Using service account from FIREBASE_SERVICE_ACCOUNT_JSON');
+      } catch (e) {
+        console.error('[FIREBASE] Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON:', e.message);
+        throw e;
+      }
+    } else if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
+      // Method 2: Use file path from environment variable
+      credential = admin.credential.cert(process.env.FIREBASE_SERVICE_ACCOUNT_PATH);
+      console.log('[FIREBASE] Using service account from FIREBASE_SERVICE_ACCOUNT_PATH');
+    } else {
+      // Method 3: Try local file
+      const localPath = path.join(__dirname, '../kylo-firebase-key.json');
+      credential = admin.credential.cert(localPath);
+      console.log('[FIREBASE] Using local service account file');
+    }
     
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccountPath),
+      credential: credential,
       databaseURL: process.env.FIREBASE_DATABASE_URL,
     });
 
