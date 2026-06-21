@@ -253,6 +253,45 @@ async function deleteKBItem(clientId, itemId) {
 async function saveLead(clientId, leadData) {
   try {
     console.log(`[FIREBASE SAVESLEAD] Starting save for client: ${clientId}`);
+    
+    // DUPLICATE CHECK: Look for recent leads with same email/name/source
+    // This prevents duplicate saves if frontend calls save multiple times
+    if (leadData.email || leadData.name) {
+      try {
+        const tenSecondsAgo = new Date(Date.now() - 10000);
+        const recentDuplicates = await db.collection('leads')
+          .doc(clientId)
+          .collection('items')
+          .where('source', '==', leadData.source || 'chat')
+          .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(tenSecondsAgo))
+          .get();
+        
+        // Check if any recent lead has same email or name
+        for (const doc of recentDuplicates.docs) {
+          const existingLead = doc.data();
+          const sameEmail = leadData.email && leadData.email === existingLead.email && leadData.email !== '';
+          const sameName = leadData.name && leadData.name.toLowerCase() === existingLead.name.toLowerCase();
+          
+          if (sameEmail || sameName) {
+            console.log(`[FIREBASE SAVESLEAD] ⚠️ DUPLICATE PREVENTED: Found recent lead with same ${sameEmail ? 'email' : 'name'}`);
+            console.log(`[FIREBASE SAVESLEAD] Existing lead:`, { id: existingLead.id, name: existingLead.name, email: existingLead.email });
+            console.log(`[FIREBASE SAVESLEAD] Returning existing lead instead of creating duplicate`);
+            // Return the existing lead instead of creating a duplicate
+            return {
+              id: existingLead.id,
+              clientId: existingLead.clientId,
+              name: existingLead.name,
+              email: existingLead.email,
+              isDuplicate: true
+            };
+          }
+        }
+      } catch (dupError) {
+        // Log but don't fail - continue with save if duplicate check fails
+        console.log(`[FIREBASE SAVESLEAD] Duplicate check error (continuing with save):`, dupError.message);
+      }
+    }
+    
     const leadId = `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     console.log(`[FIREBASE SAVESLEAD] Generated leadId: ${leadId}`);
     

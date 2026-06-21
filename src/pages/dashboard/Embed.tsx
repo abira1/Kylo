@@ -165,7 +165,12 @@ export function Embed() {
    * Auto-save lead to Firestore when enough data is collected
    */
   const autoSaveLead = async (forceSource?: string) => {
-    // Don't prevent duplicate saves - allow overwriting with new data
+    // Prevent duplicate saves - check if already saved
+    if (leadSaved) {
+      console.log('[LEAD] Lead already saved, skipping duplicate save');
+      return false;
+    }
+
     if (!hasEnoughLeadData()) {
       console.log('[LEAD] Not enough data to save:', conversationContext);
       return false;
@@ -524,11 +529,25 @@ export function Embed() {
           
           // Check if Claude extracted any data
           if (data.extractedData && Object.keys(data.extractedData).length > 0) {
+            console.log('[UPLOAD] Extracted keys:', Object.keys(data.extractedData));
+            console.log('[UPLOAD] Extracted fullName:', data.extractedData.fullName);
+            
             // Update context with all extracted data
-            setConversationContext(prev => ({
-              ...prev,
-              ...data.extractedData
-            }));
+            setConversationContext(prev => {
+              const updated = {
+                ...prev,
+                ...data.extractedData,
+                // Ensure we have a name for display
+                name: data.extractedData.fullName || data.extractedData.firstName || prev.name || 'Unknown'
+              };
+              console.log('[UPLOAD] Updated context:', { 
+                fullName: updated.fullName, 
+                name: updated.name,
+                hasEmail: !!updated.email,
+                hasPhone: !!updated.phone
+              });
+              return updated;
+            });
 
             // Format extracted data for display
             const formattedData = Object.entries(data.extractedData)

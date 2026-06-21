@@ -55,10 +55,11 @@ export function Leads() {
   // Function to fetch leads
   const fetchLeads = async (isRefresh = false) => {
     try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
+      // Only set loading on initial load, not on refresh
+      if (!isRefresh) {
         setLoading(true);
+      } else {
+        setRefreshing(true);
       }
       
       // Use user's UID, fallback to demoClientId
@@ -80,17 +81,30 @@ export function Leads() {
             id: data.leads[0].id,
             name: data.leads[0].name,
             email: data.leads[0].email,
-            source: data.leads[0].source
+            source: data.leads[0].source,
+            status: data.leads[0].status
           });
+          
+          // Validate lead data - log any with missing names
+          const problematicLeads = data.leads.filter(l => !l.name || l.name.trim() === '');
+          if (problematicLeads.length > 0) {
+            console.warn('[LEADS] ⚠️ Found leads with missing names:', problematicLeads.map(l => ({ id: l.id, email: l.email })));
+          }
         }
         setLeads(data.leads || []);
       } else {
         console.error('Failed to fetch leads, status:', response.status);
-        setLeads([]);
+        // Don't clear leads on error - keep showing what we had
+        if (!isRefresh) {
+          setLeads([]);
+        }
       }
     } catch (error) {
       console.error('Error fetching leads:', error);
-      setLeads([]);
+      // Don't clear leads on error - keep showing what we had
+      if (!isRefresh) {
+        setLeads([]);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -122,14 +136,25 @@ export function Leads() {
 
   // Filter leads
   const filteredLeads = leads.filter(lead => {
+    // Debug: Log why leads are filtered
     const matchesSearch = 
       lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lead.email.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    const passes = matchesSearch && matchesStatus;
+    if (!passes) {
+      if (!matchesSearch) {
+        console.log('[LEADS FILTER] Search mismatch:', { name: lead.name, email: lead.email, searchTerm });
+      }
+      if (!matchesStatus) {
+        console.log('[LEADS FILTER] Status mismatch:', { status: lead.status, filter: statusFilter });
+      }
+    }
+    return passes;
   });
+  console.log('[LEADS] Filtered:', filteredLeads.length, 'from', leads.length, '(search:', searchTerm, ', status:', statusFilter, ')');
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'new':
@@ -301,14 +326,14 @@ export function Leads() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-white font-bold text-sm sm:text-base shadow-sm">
-                            {lead.name.charAt(0).toUpperCase()}
+                            {(lead.name || 'U').charAt(0).toUpperCase()}
                           </div>
                           <div>
                             <div className="font-bold text-gray-900 dark:text-white text-sm">
-                              {lead.name || 'Unknown'}
+                              {lead.name && lead.name.trim() ? lead.name : 'No name'}
                             </div>
                             <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                              {lead.email}
+                              {lead.email || 'no-email'}
                             </div>
                           </div>
                         </div>
