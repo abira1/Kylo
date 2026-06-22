@@ -204,7 +204,8 @@
     frame.setAttribute('allow', 'microphone; camera');
     frame.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-presentation');
     const cacheBuster = 'v=' + Date.now();
-    const iframeSrc = `${apiBase}/embed.html?publicKey=${encodeURIComponent(publicKey)}&agent=${encodeURIComponent(branding?.agentName || 'KYLO')}&apiBase=${encodeURIComponent(apiBase)}&${cacheBuster}`;
+    const welcomeMsg = encodeURIComponent(window.KYLO_CONFIG?.welcomeMsg || 'How can we help you today?');
+    const iframeSrc = `${apiBase}/embed.html?publicKey=${encodeURIComponent(publicKey)}&agent=${encodeURIComponent(branding?.agentName || 'KYLO')}&apiBase=${encodeURIComponent(apiBase)}&welcomeMsg=${welcomeMsg}&${cacheBuster}`;
     frame.src = iframeSrc;
     
     // Debug logging

@@ -425,9 +425,17 @@
         const params = new URLSearchParams(window.location.search);
         const publicKey = params.get('publicKey');
         const agentName = params.get('agent') || 'Chat Assistant';
+        const welcomeMsg = params.get('welcomeMsg') || 'How can we help you today?';
 
         // Set agent name
         document.getElementById('agentName').textContent = agentName;
+
+        // Set welcome message
+        const welcomeTitle = document.querySelector('.kylo-welcome-title');
+        const welcomeText = document.querySelector('.kylo-welcome-text');
+        if (welcomeText) {
+            welcomeText.textContent = welcomeMsg;
+        }
 
         // Get API base from URL parameter or default
         const urlParams = new URLSearchParams(window.location.search);
