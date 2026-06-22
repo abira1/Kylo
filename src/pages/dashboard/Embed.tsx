@@ -1182,7 +1182,7 @@ app.mount('#app')
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
-                  const url = `https://kylo-production.up.railway.app/test-widget.html?publicKey=${publicWidgetKey}`;
+                  const url = `https://kylo-production.up.railway.app/simple-test.html?publicKey=${publicWidgetKey}`;
                   window.open(url, '_blank');
                 }}
                 className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-800 rounded-lg transition-colors"
