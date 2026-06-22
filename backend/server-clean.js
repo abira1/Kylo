@@ -232,13 +232,19 @@ app.post('/api/chat', async (req, res) => {
         .get();
       
       if (clientsSnapshot.empty) {
-        console.warn(`[CHAT] Public key not found: ${publicKey}`);
-        return res.status(404).json({ error: 'Widget key not found' });
+        // For demo keys, use a demo client ID
+        if (publicKey === 'pk_live_demo_d4f2k9xq1m4r7') {
+          console.log(`[CHAT] Using demo client for demo key`);
+          clientId = 'demo_client_test';
+        } else {
+          console.warn(`[CHAT] Public key not found: ${publicKey}`);
+          return res.status(404).json({ error: 'Widget key not found' });
+        }
+      } else {
+        const clientDoc = clientsSnapshot.docs[0];
+        clientId = clientDoc.id;
+        console.log(`[CHAT] Resolved publicKey ${publicKey} to clientId ${clientId}`);
       }
-      
-      const clientDoc = clientsSnapshot.docs[0];
-      clientId = clientDoc.id;
-      console.log(`[CHAT] Resolved publicKey ${publicKey} to clientId ${clientId}`);
     }
 
     // Validate required fields
@@ -254,9 +260,15 @@ app.post('/api/chat', async (req, res) => {
 
     console.log(`[CHAT] clientId: ${clientId}, conversationId: ${conversationId}`);
 
-    // Validate client access
-    const client = await validateClientAccess(clientId);
-    console.log(`[CHAT] Client validated: ${client.name}`);
+    // Validate client access (skip for demo clients)
+    let client = null;
+    if (clientId !== 'demo_client_test') {
+      client = await validateClientAccess(clientId);
+      console.log(`[CHAT] Client validated: ${client.name}`);
+    } else {
+      console.log(`[CHAT] Using demo client (no validation needed)`);
+      client = { name: 'Demo Client', id: 'demo_client_test' };
+    }
 
     // Build system prompt WITH client-specific context
     // Pass message count to determine which prompt to use
@@ -288,9 +300,11 @@ app.post('/api/chat', async (req, res) => {
       content: assistantMessage
     }];
     
-    saveConversation(clientId, conversationId, updatedMessages).catch(err => {
-      console.error('[CHAT] Failed to save conversation:', err.message);
-    });
+    if (clientId !== 'demo_client_test') {
+      saveConversation(clientId, conversationId, updatedMessages).catch(err => {
+        console.error('[CHAT] Failed to save conversation:', err.message);
+      });
+    }
 
     // Return response with both 'message' and 'reply' for compatibility
     res.json({
