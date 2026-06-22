@@ -317,8 +317,10 @@
                 };
                 
                 // Create debug info element
-                const debugMsg = `URL=${apiUrl}|PK=${publicKey}|Msgs=${payload.messages.length}`;
+                const payloadSize = JSON.stringify(payload).length;
+                const debugMsg = `URL=${apiUrl}|PK=${publicKey}|Msgs=${payload.messages.length}|Size=${payloadSize}`;
                 console.log('[KYLO DEBUG]', debugMsg);
+                addMessage(debugMsg, 'debug');
                 
                 const response = await fetch(apiUrl, {
                     method: 'POST',

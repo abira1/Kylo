@@ -236,6 +236,35 @@ export function Embed() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  // Inject widget.js for Live Preview
+  useEffect(() => {
+    // Configure widget for preview
+    (window as any).KYLO_CONFIG = {
+      publicKey: publicWidgetKey,
+      position: 'bottom-right',
+      apiBase: 'https://kylo-production.up.railway.app',
+      debug: true,
+      container: 'preview-container'
+    };
+    
+    // Inject widget.js script
+    const script = document.createElement('script');
+    script.src = 'https://kylo-production.up.railway.app/widget.js?v=' + Date.now();
+    script.async = true;
+    script.dataset.embedKey = publicWidgetKey;
+    document.head.appendChild(script);
+    
+    console.log('[EMBED] Widget injected with config:', (window as any).KYLO_CONFIG);
+    
+    // Cleanup: remove script on unmount
+    return () => {
+      const scripts = document.querySelectorAll('script[src*="widget.js"]');
+      scripts.forEach(s => s.remove());
+      delete (window as any).KYLO_CONFIG;
+      delete (window as any).KYLO;
+    };
+  }, [publicWidgetKey]);
+
   /**
    * Generate the production-ready embed snippet
    * Uses public key (never exposes internal clientId)
@@ -1212,29 +1241,8 @@ app.mount('#app')
         </div>
       </div>
 
-      {/* Hidden script configuration for the preview widget */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-            (function() {
-              // Configure widget for preview
-              window.KYLO_CONFIG = {
-                publicKey: '${publicWidgetKey}',
-                position: 'bottom-right',
-                apiBase: 'https://kylo-production.up.railway.app',
-                debug: true,
-                container: 'preview-container'
-              };
-              
-              // Inject widget.js
-              const script = document.createElement('script');
-              script.src = 'https://kylo-production.up.railway.app/widget.js?v=' + Date.now();
-              script.async = true;
-              document.head.appendChild(script);
-            })();
-          `
-        }}
-      />
+      {/* Widget script will be injected by useEffect */}
+      {/* useEffect runs after component mounts to load widget.js */}
     </div>
   );
 }
