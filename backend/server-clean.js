@@ -122,7 +122,9 @@ app.get('/api/branding/:publicKey', async (req, res) => {
         branding = {
           agentName: 'KYLO Assistant',
           primaryColor: '#06b6d4',
-          logoURL: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"%3E%3Crect fill="%2306b6d4" width="32" height="32"/%3E%3Ctext x="50%25" y="50%25" font-size="20" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central"%3EK%3C/text%3E%3C/svg%3E'
+          logoURL: null,
+          position: 'bottom-right',
+          cachedUntil: new Date(Date.now() + 5 * 60 * 1000).toISOString()
         };
       } else {
         console.warn(`[BRANDING] Public key not found: ${publicKey}`);
