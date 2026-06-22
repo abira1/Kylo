@@ -248,14 +248,17 @@
         // Set agent name
         document.getElementById('agentName').textContent = agentName;
 
+        // Get API base from URL parameter or default
+        const urlParams = new URLSearchParams(window.location.search);
+        const apiBaseParam = urlParams.get('apiBase');
+        
         // State
         let messages = [];
         let conversationId = null;
         let isLoading = false;
 
-        // Get API base from parent window or use default
-        // Make it a var to ensure it's accessible in all scopes
-        var API_BASE = (window.parent.KYLO_CONFIG && window.parent.KYLO_CONFIG.apiBase) || 'https://kylo-production.up.railway.app';
+        // Get API base - try URL param first, then parent window config, then default
+        var API_BASE = apiBaseParam || (window.parent.KYLO_CONFIG && window.parent.KYLO_CONFIG.apiBase) || 'https://kylo-production.up.railway.app';
 
         console.log('[KYLO Embed] Initialized with:', { publicKey, agentName, API_BASE });
 
