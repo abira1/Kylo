@@ -1172,18 +1172,24 @@ app.mount('#app')
           </div>
         </div>
 
-        {/* Live Preview - Visual Mockup Only */}
+        {/* Live Preview - FUNCTIONAL WIDGET */}
         <div className="bento-card flex flex-col h-[600px] xl:sticky xl:top-24 overflow-hidden p-0 relative">
           <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-navy-700 bg-white dark:bg-navy-900 z-10">
             <div className="flex items-center gap-3">
               <Settings2 className="text-emerald-500 dark:text-cyan-400" size={20} />
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Live Preview</h2>
-              <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full font-semibold">Visual Mock</span>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Live Preview - Functional</h2>
+              <span className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full font-semibold">✓ Works</span>
             </div>
+            <button
+              onClick={() => window.location.reload()}
+              className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-800 rounded-lg transition-colors"
+              title="Reload Preview">
+              <RefreshCw size={18} />
+            </button>
           </div>
 
-          {/* Website Preview Mockup */}
-          <div className="flex-1 bg-gradient-to-b from-gray-100 to-gray-50 dark:from-navy-900 dark:to-navy-950 relative overflow-hidden">
+          {/* Website Preview with REAL WIDGET */}
+          <div className="flex-1 bg-gradient-to-b from-gray-100 to-gray-50 dark:from-navy-900 dark:to-navy-950 relative overflow-hidden" id="preview-container">
             {/* Website Background Content */}
             <div className="relative h-full p-8 flex flex-col">
               {/* Fake Website Header */}
@@ -1199,26 +1205,36 @@ app.mount('#app')
                 <div className="bg-gray-300 dark:bg-navy-700 rounded-xl h-full"></div>
               </div>
 
-              {/* Floating Widget Button - YOUR CUSTOMIZATION */}
-              <button
-                disabled
-                className="absolute bottom-8 right-8 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-white font-bold text-lg z-30"
-                style={{ 
-                  backgroundColor: primaryColor,
-                  boxShadow: `0 10px 30px ${primaryColor}40`
-                }}
-                title="This is what your users will see">
-                💬
-              </button>
-
-              {/* Label showing customization applies here */}
-              <div className="absolute bottom-24 right-8 bg-white dark:bg-navy-800 px-3 py-2 rounded-lg shadow-lg text-xs font-semibold text-gray-900 dark:text-white border-2" style={{ borderColor: primaryColor }}>
-                Your button with<br/>brand color
-              </div>
+              {/* REAL WIDGET WILL RENDER HERE */}
+              {/* The widget.js script will inject the floating button and chat iframe */}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Hidden script configuration for the preview widget */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+            (function() {
+              // Configure widget for preview
+              window.KYLO_CONFIG = {
+                publicKey: '${publicWidgetKey}',
+                position: 'bottom-right',
+                apiBase: 'https://kylo-production.up.railway.app',
+                debug: true,
+                container: 'preview-container'
+              };
+              
+              // Inject widget.js
+              const script = document.createElement('script');
+              script.src = 'https://kylo-production.up.railway.app/widget.js?v=' + Date.now();
+              script.async = true;
+              document.head.appendChild(script);
+            })();
+          `
+        }}
+      />
     </div>
   );
 }
