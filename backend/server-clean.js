@@ -28,6 +28,12 @@ console.log('[STARTUP] Client created successfully');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Request logger middleware - log EVERY request
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
+
 // Allowed origins for CORS
 const allowedOrigins = [
   'http://localhost:5173',
@@ -236,6 +242,18 @@ app.post('/api/test-endpoint', async (req, res) => {
  */
 app.post('/api/chat', async (req, res) => {
   try {
+    // Log ALL incoming requests with full details
+    console.log('');
+    console.log('========== /API/CHAT REQUEST ==========');
+    console.log('Time:', new Date().toISOString());
+    console.log('Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('Body:', JSON.stringify(req.body, null, 2));
+    console.log('Method:', req.method);
+    console.log('Path:', req.path);
+    console.log('URL:', req.originalUrl);
+    console.log('========================================');
+    console.log('');
+    
     let { clientId, conversationId, messages, qaContext, publicKey } = req.body;
 
     // If publicKey is provided (from widget embed), resolve it to clientId
