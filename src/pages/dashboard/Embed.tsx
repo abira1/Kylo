@@ -1172,33 +1172,57 @@ app.mount('#app')
           </div>
         </div>
 
-        {/* Live Preview - EMBEDDED WIDGET */}
+        {/* Live Preview - Visual Mockup Only */}
         <div className="bento-card flex flex-col h-[600px] xl:sticky xl:top-24 overflow-hidden p-0 relative">
           <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-navy-700 bg-white dark:bg-navy-900 z-10">
             <div className="flex items-center gap-3">
               <Settings2 className="text-emerald-500 dark:text-cyan-400" size={20} />
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Interactive Preview</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Live Preview</h2>
+              <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full font-semibold">Visual Mock</span>
             </div>
-            <button
-              onClick={() => window.location.reload()}
-              className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-800 rounded-lg transition-colors"
-              title="Reload Preview">
-              <RefreshCw size={18} />
-            </button>
+            <a
+              href={`https://kylo-production.up.railway.app/simple-test.html?publicKey=${publicWidgetKey}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors flex items-center gap-2">
+              <ExternalLink size={14} />
+              Test Live
+            </a>
           </div>
 
-          {/* Embedded Widget Iframe */}
-          <div className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-navy-950 dark:to-navy-900 relative overflow-hidden">
-            <iframe
-              key={`embed-${publicWidgetKey}`}
-              src={`https://kylo-production.up.railway.app/simple-test.html?publicKey=${publicWidgetKey}&embedded=true`}
-              title="KYLO Widget Live Preview"
-              className="w-full h-full border-0"
-              sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms allow-top-navigation"
-              style={{
-                backgroundColor: 'transparent',
-              }}
-            />
+          {/* Website Preview Mockup */}
+          <div className="flex-1 bg-gradient-to-b from-gray-100 to-gray-50 dark:from-navy-900 dark:to-navy-950 relative overflow-hidden">
+            {/* Website Background Content */}
+            <div className="relative h-full p-8 flex flex-col">
+              {/* Fake Website Header */}
+              <div className="space-y-4 mb-8">
+                <div className="w-32 h-6 bg-gray-300 dark:bg-navy-700 rounded-md"></div>
+                <div className="w-2/3 h-10 bg-gray-300 dark:bg-navy-700 rounded-lg"></div>
+                <div className="w-1/2 h-4 bg-gray-300 dark:bg-navy-700 rounded"></div>
+              </div>
+
+              {/* Fake Website Content Grid */}
+              <div className="grid grid-cols-2 gap-4 flex-1">
+                <div className="bg-gray-300 dark:bg-navy-700 rounded-xl h-full"></div>
+                <div className="bg-gray-300 dark:bg-navy-700 rounded-xl h-full"></div>
+              </div>
+
+              {/* Floating Widget Button - YOUR CUSTOMIZATION */}
+              <button
+                className="absolute bottom-8 right-8 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-white font-bold text-lg hover:scale-110 transition-transform z-30"
+                style={{ 
+                  backgroundColor: primaryColor,
+                  boxShadow: `0 10px 30px ${primaryColor}40`
+                }}
+                title="This is what your users will see">
+                💬
+              </button>
+
+              {/* Label showing customization applies here */}
+              <div className="absolute bottom-24 right-8 bg-white dark:bg-navy-800 px-3 py-2 rounded-lg shadow-lg text-xs font-semibold text-gray-900 dark:text-white border-2" style={{ borderColor: primaryColor }}>
+                Your button with<br/>brand color
+              </div>
+            </div>
           </div>
         </div>
       </div>
