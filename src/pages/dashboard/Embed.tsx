@@ -1172,85 +1172,105 @@ app.mount('#app')
           </div>
         </div>
 
-        {/* Live Preview - REAL WIDGET IFRAME */}
+        {/* Live Preview */}
         <div className="bento-card flex flex-col h-[600px] xl:sticky xl:top-24 overflow-hidden p-0 relative">
           <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-navy-700 bg-white dark:bg-navy-900 z-10">
             <div className="flex items-center gap-3">
               <Settings2 className="text-emerald-500 dark:text-cyan-400" size={20} />
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Interactive Preview - Live Widget</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Interactive Preview</h2>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  const url = `https://kylo-production.up.railway.app/simple-test.html?publicKey=${publicWidgetKey}`;
-                  window.open(url, '_blank');
-                }}
-                className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-800 rounded-lg transition-colors"
-                title="Open Full Preview in New Tab">
-                <ExternalLink size={16} />
-              </button>
-              <button
-                onClick={() => window.location.reload()}
-                className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-800 rounded-lg transition-colors"
-                title="Reload Preview">
-                <RefreshCw size={16} />
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                const url = `https://kylo-production.up.railway.app/simple-test.html?publicKey=${publicWidgetKey}`;
+                window.open(url, '_blank');
+              }}
+              className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors flex items-center gap-2"
+              title="Open Test Widget in New Tab">
+              <ExternalLink size={14} />
+              Test Live
+            </button>
           </div>
 
-          {/* EMBEDDED WIDGET IFRAME */}
-          <div className="flex-1 bg-gray-50 dark:bg-navy-950 relative overflow-hidden p-4">
-            <div className="w-full h-full rounded-lg border-2 border-dashed border-gray-300 dark:border-navy-700 overflow-hidden flex items-center justify-center bg-white dark:bg-navy-900">
-              <iframe
-                key={`widget-preview-${publicWidgetKey}`}
-                src={`data:text/html,<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KYLO Widget Preview</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      height: 100vh;
-      background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .container {
-      text-align: center;
-      color: #333;
-    }
-    h2 { margin-bottom: 10px; }
-    p { color: #666; font-size: 14px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h2>🚀 Loading Widget...</h2>
-    <p>Public Key: ${publicWidgetKey}</p>
-  </div>
-  <script>
-    window.KYLO_CONFIG = {
-      publicKey: '${publicWidgetKey}',
-      apiBase: 'https://kylo-production.up.railway.app',
-      position: 'bottom-right'
-    };
-  </script>
-  <script src="https://kylo-production.up.railway.app/widget.js" async></script>
-</body>
-</html>`}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  border: 'none',
-                  borderRadius: '8px',
-                }}
-                title="KYLO Widget Preview"
-                sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-top-navigation"
-              />
+          {/* Preview Mockup */}
+          <div className="flex-1 bg-gray-50 dark:bg-navy-950 relative overflow-hidden p-6">
+            {/* Fake Website Background */}
+            <div className="absolute inset-0 p-6 opacity-20 pointer-events-none">
+              <div className="w-32 h-6 bg-gray-300 dark:bg-navy-800 rounded-md mb-12"></div>
+              <div className="w-3/4 h-10 bg-gray-300 dark:bg-navy-800 rounded-lg mb-6"></div>
+              <div className="w-1/2 h-4 bg-gray-300 dark:bg-navy-800 rounded mb-12"></div>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="w-full h-32 bg-gray-300 dark:bg-navy-800 rounded-xl"></div>
+                <div className="w-full h-32 bg-gray-300 dark:bg-navy-800 rounded-xl"></div>
+              </div>
+            </div>
+
+            {/* Floating Widget Button Preview */}
+            <button
+              onClick={() => setIsWidgetOpen(!isWidgetOpen)}
+              className="absolute bottom-6 right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white transition-transform hover:scale-105 active:scale-95 z-20"
+              style={{ backgroundColor: primaryColor }}>
+              {isWidgetOpen ? <X size={24} /> : <MessageSquare size={24} />}
+            </button>
+
+            {/* Widget Window Preview */}
+            <div
+              className={`absolute bottom-24 right-6 w-[calc(100%-3rem)] sm:w-[340px] flex flex-col shadow-2xl rounded-2xl overflow-hidden border border-gray-200 dark:border-navy-700 bg-white dark:bg-navy-900 transition-all duration-300 origin-bottom-right z-20 ${
+                isWidgetOpen ? 'scale-100 opacity-100' : 'scale-50 opacity-0 pointer-events-none'
+              }`}
+              style={{ height: '420px' }}>
+              
+              {/* Widget Header */}
+              <div className="p-4 text-white flex items-center justify-between shadow-sm z-10" style={{ backgroundColor: primaryColor }}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                    <Bot size={20} />
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm leading-tight">{botName}</div>
+                    <div className="text-xs text-white/90 flex items-center gap-1.5 mt-0.5">
+                      <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                      Online
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsWidgetOpen(false)}
+                  className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Widget Body */}
+              <div className="flex-1 p-4 bg-gray-50/50 dark:bg-navy-900/50 overflow-y-auto flex flex-col gap-4">
+                <div className="flex justify-start">
+                  <div className="max-w-[85%] p-3 text-sm shadow-sm bg-white dark:bg-navy-800 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm border border-gray-100 dark:border-navy-700">
+                    {parseMessageText("Hi there! How can I help you today?")}
+                  </div>
+                </div>
+              </div>
+
+              {/* Widget Input */}
+              <div className="p-3 bg-white dark:bg-navy-900 border-t border-gray-100 dark:border-navy-800">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Type your message..."
+                    disabled
+                    className="flex-1 bg-gray-100 dark:bg-navy-950 border border-transparent rounded-full px-4 py-2.5 text-sm outline-none dark:text-white cursor-not-allowed opacity-60"
+                  />
+                  <button
+                    disabled
+                    className="w-10 h-10 rounded-full text-white flex items-center justify-center flex-shrink-0 disabled:opacity-50"
+                    style={{ backgroundColor: primaryColor }}>
+                    <Send size={16} className="ml-0.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Info Text */}
+            <div className="relative z-10 text-center text-sm text-gray-600 dark:text-gray-400 mt-4">
+              <p>Click "Test Live" to see the widget in action →</p>
             </div>
           </div>
         </div>
