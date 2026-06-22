@@ -1172,12 +1172,12 @@ app.mount('#app')
           </div>
         </div>
 
-        {/* Live Preview */}
+        {/* Live Preview - REAL WIDGET IFRAME */}
         <div className="bento-card flex flex-col h-[600px] xl:sticky xl:top-24 overflow-hidden p-0 relative">
           <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-navy-700 bg-white dark:bg-navy-900 z-10">
             <div className="flex items-center gap-3">
               <Settings2 className="text-emerald-500 dark:text-cyan-400" size={20} />
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Interactive Preview</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Interactive Preview - Live Widget</h2>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -1190,189 +1190,66 @@ app.mount('#app')
                 <ExternalLink size={16} />
               </button>
               <button
-                onClick={handleResetChat}
+                onClick={() => window.location.reload()}
                 className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-800 rounded-lg transition-colors"
-                title="Reset Chat">
+                title="Reload Preview">
                 <RefreshCw size={16} />
               </button>
             </div>
           </div>
 
-          <div className="flex-1 bg-gray-50 dark:bg-navy-950 relative overflow-hidden">
-            {/* Fake Website Background */}
-            <div className="absolute inset-0 p-6 sm:p-8 opacity-40 pointer-events-none">
-              <div className="w-32 h-6 bg-gray-300 dark:bg-navy-800 rounded-md mb-12"></div>
-              <div className="w-3/4 h-10 bg-gray-300 dark:bg-navy-800 rounded-lg mb-6"></div>
-              <div className="w-1/2 h-4 bg-gray-300 dark:bg-navy-800 rounded mb-12"></div>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="w-full h-32 bg-gray-300 dark:bg-navy-800 rounded-xl"></div>
-                <div className="w-full h-32 bg-gray-300 dark:bg-navy-800 rounded-xl"></div>
-              </div>
-            </div>
-
-            {/* Floating Widget Button */}
-            <button
-              onClick={() => setIsWidgetOpen(!isWidgetOpen)}
-              className="absolute bottom-6 right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white transition-transform hover:scale-105 active:scale-95 z-20"
-              style={{ backgroundColor: primaryColor }}>
-              {isWidgetOpen ? <X size={24} /> : <MessageSquare size={24} />}
-            </button>
-
-            {/* Widget Window */}
-            <div
-              className={`absolute bottom-24 right-6 w-[calc(100%-3rem)] sm:w-[340px] flex flex-col shadow-2xl rounded-2xl overflow-hidden border border-gray-200 dark:border-navy-700 bg-white dark:bg-navy-900 transition-all duration-300 origin-bottom-right z-20 ${
-                isWidgetOpen ? 'scale-100 opacity-100' : 'scale-50 opacity-0 pointer-events-none'
-              }`}
-              style={{ height: '420px' }}>
-              
-              {/* Widget Header */}
-              <div className="p-4 text-white flex items-center justify-between shadow-sm z-10" style={{ backgroundColor: primaryColor }}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                    <Bot size={20} />
-                  </div>
-                  <div>
-                    <div className="font-bold text-sm leading-tight">{botName}</div>
-                    <div className="text-xs text-white/90 flex items-center gap-1.5 mt-0.5">
-                      <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                      Online
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsWidgetOpen(false)}
-                  className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
-                  <X size={18} />
-                </button>
-              </div>
-
-              {/* Widget Body (Chat Messages) */}
-              <div className="flex-1 p-4 bg-gray-50/50 dark:bg-navy-900/50 overflow-y-auto flex flex-col gap-4">
-                {messages.map((msg) =>
-                  <div key={msg.id}>
-                    <div className={`flex ${msg.isBot ? 'justify-start' : 'justify-end'}`}>
-                      {msg.hasDocument && uploadedImageUrl ? (
-                        // Image preview with scanning animation
-                        <div className="max-w-[85%] p-0 overflow-hidden rounded-2xl border-2 border-gray-200 dark:border-navy-700 shadow-lg relative">
-                          <img 
-                            src={uploadedImageUrl} 
-                            alt="Uploaded document" 
-                            className="w-full h-auto max-h-64 object-cover"
-                          />
-                          {isScanning && (
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse" 
-                              style={{
-                                animation: 'scan 1.5s infinite'
-                              }}>
-                              <style>{`
-                                @keyframes scan {
-                                  0% { transform: translateX(-100%); }
-                                  100% { transform: translateX(100%); }
-                                }
-                              `}</style>
-                            </div>
-                          )}
-                          {isScanning && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/10">
-                              <div className="flex flex-col items-center gap-2">
-                                <div className="w-8 h-8 border-3 border-white/50 border-t-white rounded-full animate-spin"></div>
-                                <span className="text-white text-xs font-semibold bg-black/40 px-3 py-1 rounded-full backdrop-blur">Scanning...</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div
-                          className={`max-w-[85%] p-3 text-sm shadow-sm whitespace-pre-wrap break-words ${
-                            msg.isBot
-                              ? 'bg-white dark:bg-navy-800 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm border border-gray-100 dark:border-navy-700'
-                              : 'text-white rounded-2xl rounded-tr-sm'
-                          }`}
-                          style={!msg.isBot ? { backgroundColor: primaryColor } : {}}>
-                          {parseMessageText(msg.text)}
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Show options if available */}
-                    {msg.isBot && msg.options && (
-                      <div className="flex flex-col gap-1.5 mt-2 ml-0">
-                        {msg.options.map((option, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => handleOptionClick(option)}
-                            className="text-left px-3 py-1.5 rounded-lg text-xs font-medium border-2 transition-all"
-                            style={{
-                              borderColor: primaryColor,
-                              color: primaryColor,
-                              backgroundColor: 'transparent',
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = `${primaryColor}10`;
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                            }}>
-                            <span className="inline">{parseMessageText(option)}</span>
-                            <ChevronRight size={12} className="inline ml-1" />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {isTyping && (
-                  <div className="flex justify-start">
-                    <div className="bg-white dark:bg-navy-800 p-4 rounded-2xl rounded-tl-sm border border-gray-100 dark:border-navy-700 shadow-sm flex gap-1.5 items-center h-[42px]">
-                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
-                    </div>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Widget Input - Always show text input for free conversation */}
-              <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="p-3 bg-white dark:bg-navy-900 border-t border-gray-100 dark:border-navy-800 space-y-2">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    placeholder="Type your message..."
-                    className="flex-1 bg-gray-100 dark:bg-navy-950 border border-transparent focus:border-gray-200 dark:focus:border-navy-700 rounded-full px-4 py-2.5 text-sm outline-none dark:text-white transition-colors"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    disabled={isTyping}
-                    autoFocus
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isTyping || uploadingFile}
-                    className="w-10 h-10 rounded-full text-white flex items-center justify-center flex-shrink-0 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ backgroundColor: primaryColor }}
-                    title="Upload document">
-                    <Upload size={16} />
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={!inputValue.trim() || isTyping}
-                    className="w-10 h-10 rounded-full text-white flex items-center justify-center flex-shrink-0 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ backgroundColor: primaryColor }}>
-                    <Send size={16} className="ml-0.5" />
-                  </button>
-                </div>
-                {uploadingFile && (
-                  <div className="text-xs text-gray-500 text-center">Uploading file...</div>
-                )}
-              </form>
-              <input
-                ref={fileInputRef}
-                type="file"
-                onChange={handleFileUpload}
-                className="hidden"
-                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+          {/* EMBEDDED WIDGET IFRAME */}
+          <div className="flex-1 bg-gray-50 dark:bg-navy-950 relative overflow-hidden p-4">
+            <div className="w-full h-full rounded-lg border-2 border-dashed border-gray-300 dark:border-navy-700 overflow-hidden flex items-center justify-center bg-white dark:bg-navy-900">
+              <iframe
+                key={`widget-preview-${publicWidgetKey}`}
+                src={`data:text/html,<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KYLO Widget Preview</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      height: 100vh;
+      background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      text-align: center;
+      color: #333;
+    }
+    h2 { margin-bottom: 10px; }
+    p { color: #666; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>🚀 Loading Widget...</h2>
+    <p>Public Key: ${publicWidgetKey}</p>
+  </div>
+  <script>
+    window.KYLO_CONFIG = {
+      publicKey: '${publicWidgetKey}',
+      apiBase: 'https://kylo-production.up.railway.app',
+      position: 'bottom-right'
+    };
+  </script>
+  <script src="https://kylo-production.up.railway.app/widget.js" async></script>
+</body>
+</html>`}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                  borderRadius: '8px',
+                }}
+                title="KYLO Widget Preview"
+                sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-top-navigation"
               />
             </div>
           </div>
