@@ -336,7 +336,10 @@
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.log('[KYLO Embed] Error response:', errorText);
+                    console.error('[KYLO Embed] Full error response:', errorText);
+                    console.error('[KYLO Embed] Error status:', response.status);
+                    const debugError = `Error ${response.status}: ${errorText.substring(0, 200)}`;
+                    addMessage(debugError, 'debug');
                     throw new Error(`API error: ${response.status} ${response.statusText}`);
                 }
 
