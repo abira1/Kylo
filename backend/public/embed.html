@@ -314,8 +314,15 @@
                     messages: messages
                 };
                 
-                console.log('[KYLO Embed] Sending to:', apiUrl);
-                console.log('[KYLO Embed] Payload:', payload);
+                console.log('[KYLO Embed] ===== SEND MESSAGE DEBUG START =====');
+                console.log('[KYLO Embed] API_BASE value:', API_BASE);
+                console.log('[KYLO Embed] API URL:', apiUrl);
+                console.log('[KYLO Embed] Full request URL:', apiUrl);
+                console.log('[KYLO Embed] Request method: POST');
+                console.log('[KYLO Embed] Request headers: Content-Type: application/json');
+                console.log('[KYLO Embed] Request body:', JSON.stringify(payload));
+                console.log('[KYLO Embed] Payload publicKey:', payload.publicKey);
+                console.log('[KYLO Embed] Messages count:', payload.messages.length);
                 
                 const response = await fetch(apiUrl, {
                     method: 'POST',
@@ -325,7 +332,12 @@
                     body: JSON.stringify(payload)
                 });
 
-                console.log('[KYLO Embed] Response status:', response.status, response.statusText);
+                console.log('[KYLO Embed] Response received');
+                console.log('[KYLO Embed] Response status:', response.status);
+                console.log('[KYLO Embed] Response statusText:', response.statusText);
+                console.log('[KYLO Embed] Response ok:', response.ok);
+                console.log('[KYLO Embed] Response URL:', response.url);
+                console.log('[KYLO Embed] ===== SEND MESSAGE DEBUG END =====');
 
                 if (!response.ok) {
                     const errorText = await response.text();
