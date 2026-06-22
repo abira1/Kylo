@@ -203,7 +203,8 @@
     frame.id = 'kylo-chat-frame';
     frame.setAttribute('allow', 'microphone; camera');
     frame.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-presentation');
-    const iframeSrc = `${apiBase}/embed.html?publicKey=${encodeURIComponent(publicKey)}&agent=${encodeURIComponent(branding?.agentName || 'KYLO')}`;
+    const cacheBuster = 'v=' + Date.now();
+    const iframeSrc = `${apiBase}/embed.html?publicKey=${encodeURIComponent(publicKey)}&agent=${encodeURIComponent(branding?.agentName || 'KYLO')}&${cacheBuster}`;
     frame.src = iframeSrc;
     
     // Debug logging
