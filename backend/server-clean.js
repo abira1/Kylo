@@ -247,7 +247,17 @@ app.post('/api/chat', async (req, res) => {
     console.log('========== /API/CHAT REQUEST ==========');
     console.log('Time:', new Date().toISOString());
     console.log('Headers:', JSON.stringify(req.headers, null, 2));
-    console.log('Body:', JSON.stringify(req.body, null, 2));
+    
+    // Log body size and message count
+    const bodyStr = JSON.stringify(req.body);
+    console.log('Body size:', bodyStr.length, 'bytes');
+    console.log('Messages count:', req.body.messages?.length || 0);
+    console.log('First message:', JSON.stringify(req.body.messages?.[0]).substring(0, 100));
+    if (req.body.messages?.length > 1) {
+      console.log('Last message:', JSON.stringify(req.body.messages?.[req.body.messages.length - 1]).substring(0, 150));
+    }
+    
+    console.log('Full body:', JSON.stringify(req.body, null, 2));
     console.log('Method:', req.method);
     console.log('Path:', req.path);
     console.log('URL:', req.originalUrl);
@@ -358,19 +368,17 @@ app.post('/api/chat', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[ERROR] Chat endpoint error:', {
-      message: error.message,
-      status: error.status,
-      type: error.type,
-      fullError: JSON.stringify(error, null, 2)
-    });
+    console.error('[ERROR] Chat endpoint error:');
+    console.error('Message:', error.message);
+    console.error('Stack:', error.stack);
+    console.error('Status:', error.status);
+    console.error('Type:', error.type);
+    console.error('Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+    
     res.status(500).json({
       error: 'Failed to process chat message',
-      details: {
-        message: error.message,
-        status: error.status,
-        type: error.type
-      }
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
