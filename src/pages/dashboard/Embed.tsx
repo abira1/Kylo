@@ -1180,14 +1180,6 @@ app.mount('#app')
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">Live Preview</h2>
               <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full font-semibold">Visual Mock</span>
             </div>
-            <a
-              href={`https://kylo-production.up.railway.app/simple-test.html?publicKey=${publicWidgetKey}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors flex items-center gap-2">
-              <ExternalLink size={14} />
-              Test Live
-            </a>
           </div>
 
           {/* Website Preview Mockup */}
@@ -1209,7 +1201,8 @@ app.mount('#app')
 
               {/* Floating Widget Button - YOUR CUSTOMIZATION */}
               <button
-                className="absolute bottom-8 right-8 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-white font-bold text-lg hover:scale-110 transition-transform z-30"
+                disabled
+                className="absolute bottom-8 right-8 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-white font-bold text-lg z-30"
                 style={{ 
                   backgroundColor: primaryColor,
                   boxShadow: `0 10px 30px ${primaryColor}40`
