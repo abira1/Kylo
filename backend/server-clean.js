@@ -67,6 +67,12 @@ app.use(express.static(path.join(__dirname, 'public'), {
     if (filePath.endsWith('.js')) {
       res.set('Cache-Control', 'public, max-age=3600');
     }
+    // Never cache HTML files (embed.html) - always revalidate
+    if (filePath.endsWith('.html')) {
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+    }
     // Allow CORS for widget.js
     res.set('Access-Control-Allow-Origin', '*');
   }
