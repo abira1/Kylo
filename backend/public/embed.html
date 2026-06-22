@@ -97,10 +97,10 @@
         }
 
         .kylo-message-bubble {
-            padding: 10px 14px;
+            padding: 12px 14px;
             border-radius: 12px;
             font-size: 14px;
-            line-height: 1.4;
+            line-height: 1.5;
             max-width: 85%;
             word-wrap: break-word;
         }
@@ -110,9 +110,111 @@
             color: #1f2937;
         }
 
+        .kylo-message.assistant .kylo-message-bubble h1,
+        .kylo-message.assistant .kylo-message-bubble h2,
+        .kylo-message.assistant .kylo-message-bubble h3 {
+            margin: 8px 0 4px 0;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .kylo-message.assistant .kylo-message-bubble strong {
+            font-weight: 600;
+        }
+
+        .kylo-message.assistant .kylo-message-bubble ul,
+        .kylo-message.assistant .kylo-message-bubble ol {
+            margin: 8px 0;
+            margin-left: 20px;
+        }
+
+        .kylo-message.assistant .kylo-message-bubble li {
+            margin: 4px 0;
+        }
+
+        .kylo-message.assistant .kylo-message-bubble p {
+            margin: 4px 0;
+        }
+
         .kylo-message.user .kylo-message-bubble {
             background: #6366f1;
             color: white;
+        }
+
+        .kylo-button {
+            display: inline-block;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 16px;
+            margin: 6px 6px 6px 0;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .kylo-button:hover {
+            background: #4f46e5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .kylo-button:active {
+            transform: translateY(0);
+        }
+
+        .kylo-button-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .kylo-scanning {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 16px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            margin: 8px 0;
+        }
+
+        .kylo-scanner {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #6366f1;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kylo-scanner::before {
+            content: '';
+            position: absolute;
+            top: -100%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #6366f1, transparent);
+            animation: scan 2s infinite;
+        }
+
+        @keyframes scan {
+            0% {
+                top: -100%;
+            }
+            100% {
+                top: 100%;
+            }
+        }
+
+        .kylo-scan-text {
+            font-size: 13px;
+            color: #6b7280;
+            font-weight: 500;
         }
 
         .kylo-input-area {
@@ -286,15 +388,17 @@
         /**
          * Send message
          */
-        async function sendMessage() {
+        async function sendMessage(autoMessage = null) {
             const input = document.getElementById('messageInput');
-            const message = input.value.trim();
+            const message = autoMessage || input.value.trim();
 
             if (!message || isLoading) return;
 
             // Add user message to UI
             addMessage(message, 'user');
-            input.value = '';
+            if (!autoMessage) {
+                input.value = '';
+            }
 
             // Show loading state
             isLoading = true;
@@ -333,6 +437,7 @@
                 console.log('[KYLO DEBUG]', debugResp);
 
                 if (!response.ok) {
+                    removeLoading();
                     const errorText = await response.text();
                     console.error('[KYLO Embed] Full error response:', errorText);
                     console.error('[KYLO Embed] Error status:', response.status);
@@ -347,11 +452,22 @@
                     conversationId = data.conversationId;
                 }
 
-                // Add assistant response
+                // Add assistant response with buttons if needed
                 if (data.reply) {
-                    addMessage(data.reply, 'assistant');
+                    let buttons = null;
+                    
+                    // Check if this is the initial passport collection response
+                    if (data.reply.includes('Upload my passport') || data.reply.includes('Fill information manually')) {
+                        buttons = [
+                            { text: '📎 Upload Passport', value: '1' },
+                            { text: '✍️ Fill Manually', value: '2' }
+                        ];
+                    }
+                    
+                    addMessage(data.reply, 'assistant', buttons);
                 }
             } catch (err) {
+                removeLoading();
                 console.error('[KYLO Embed] Error:', err);
                 addMessage('Sorry, I encountered an error. Please try again.', 'assistant');
             } finally {
@@ -361,14 +477,55 @@
         }
 
         /**
+         * Remove loading indicator
+         */
+        function removeLoading() {
+            const loading = document.getElementById('loading-indicator');
+            if (loading) {
+                loading.remove();
+            }
+        }
+
+        /**
+         * Parse markdown and render as HTML
+         */
+        function parseMarkdown(text) {
+            let html = text;
+            
+            // Headers
+            html = html.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
+            html = html.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
+            html = html.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
+            
+            // Bold
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+            
+            // Italic
+            html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            
+            // Paragraphs
+            html = html.replace(/\n\n/g, '</p><p>');
+            html = '<p>' + html + '</p>';
+            html = html.replace(/<p><\/p>/g, '');
+            
+            return html;
+        }
+
+        /**
          * Add message to UI and memory
          */
-        function addMessage(text, role) {
+        function addMessage(text, role, buttons = null) {
             const container = document.getElementById('messagesContainer');
 
             // Remove welcome message on first message
             const welcome = container.querySelector('.kylo-welcome');
             if (welcome) welcome.remove();
+
+            // Remove loading indicator before adding response
+            if (role === 'assistant') {
+                removeLoading();
+            }
 
             // Create message element
             const msgDiv = document.createElement('div');
@@ -376,7 +533,31 @@
 
             const bubble = document.createElement('div');
             bubble.className = 'kylo-message-bubble';
-            bubble.textContent = text;
+            
+            // For assistant messages, render markdown
+            if (role === 'assistant') {
+                bubble.innerHTML = parseMarkdown(text);
+                
+                // Add buttons if provided
+                if (buttons && buttons.length > 0) {
+                    const buttonGroup = document.createElement('div');
+                    buttonGroup.className = 'kylo-button-group';
+                    
+                    buttons.forEach(btn => {
+                        const button = document.createElement('button');
+                        button.className = 'kylo-button';
+                        button.textContent = btn.text;
+                        button.onclick = () => {
+                            sendMessage(btn.value);
+                        };
+                        buttonGroup.appendChild(button);
+                    });
+                    
+                    bubble.appendChild(buttonGroup);
+                }
+            } else {
+                bubble.textContent = text;
+            }
 
             msgDiv.appendChild(bubble);
             container.appendChild(msgDiv);
@@ -388,6 +569,36 @@
 
             // Scroll to bottom
             container.scrollTop = container.scrollHeight;
+        }
+
+        /**
+         * Show scanning animation
+         */
+        function showScanning() {
+            const container = document.getElementById('messagesContainer');
+            const scanDiv = document.createElement('div');
+            scanDiv.className = 'kylo-message assistant';
+            scanDiv.innerHTML = `
+                <div class="kylo-message-bubble">
+                    <div class="kylo-scanning">
+                        <div class="kylo-scanner"></div>
+                        <div class="kylo-scan-text">Scanning passport...</div>
+                    </div>
+                </div>
+            `;
+            scanDiv.id = 'scanning-indicator';
+            container.appendChild(scanDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        /**
+         * Remove scanning indicator
+         */
+        function removeScanning() {
+            const scanning = document.getElementById('scanning-indicator');
+            if (scanning) {
+                scanning.remove();
+            }
         }
 
         /**
