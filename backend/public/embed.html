@@ -287,6 +287,12 @@
             showLoading();
 
             try {
+                // Add user message to messages array for Claude
+                messages.push({
+                    role: 'user',
+                    content: message
+                });
+
                 // Send to backend
                 const apiUrl = `${API_BASE}/api/chat`;
                 const payload = {
