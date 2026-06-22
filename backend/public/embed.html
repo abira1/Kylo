@@ -566,6 +566,77 @@
         }
 
         /**
+         * Extract buttons from text (numbered options or yes/no questions)
+         * Returns { text: cleaned text, buttons: array of button objects }
+         */
+        function extractButtons(text) {
+            const buttons = [];
+            let cleanedText = text;
+            
+            // Pattern 1: Numbered options with emojis (1️⃣ Yes 2️⃣ No)
+            const emojiPattern = /\b([1-9]️⃣)\s*(.+?)(?=\s+[1-9]️⃣|$)/g;
+            let emojiMatches = [...text.matchAll(emojiPattern)];
+            
+            if (emojiMatches.length > 0) {
+                emojiMatches.forEach((match, idx) => {
+                    const optionText = match[2].trim();
+                    buttons.push({
+                        text: optionText,
+                        value: optionText
+                    });
+                });
+                
+                // Remove emoji options from display text
+                cleanedText = cleanedText.replace(emojiPattern, '').trim();
+            }
+            
+            // Pattern 2: Numbered options with parentheses (1) Yes 2) No)
+            if (buttons.length === 0) {
+                const numberPattern = /\b([1-9])\)\s*(.+?)(?=\n|$|\s+[1-9]\))/g;
+                let numberMatches = [...text.matchAll(numberPattern)];
+                
+                if (numberMatches.length > 0) {
+                    numberMatches.forEach((match) => {
+                        const optionText = match[2].trim();
+                        buttons.push({
+                            text: optionText,
+                            value: optionText
+                        });
+                    });
+                    
+                    // Remove numbered options from display text
+                    cleanedText = cleanedText.replace(numberPattern, '').trim();
+                }
+            }
+            
+            // Pattern 3: Markdown list format (* Yes * No)
+            if (buttons.length === 0) {
+                const bulletPattern = /^\*\s+(.+?)$/gm;
+                let bulletMatches = [...text.matchAll(bulletPattern)];
+                
+                if (bulletMatches.length > 0 && bulletMatches.length <= 3) {
+                    bulletMatches.forEach((match) => {
+                        const optionText = match[1].trim();
+                        buttons.push({
+                            text: optionText,
+                            value: optionText
+                        });
+                    });
+                }
+            }
+            
+            // Pattern 4: Yes/No question detection (for simple confirmation)
+            if (buttons.length === 0 && /\(Yes\/No\)|\?.*\(yes|no\)/i.test(text)) {
+                buttons.push(
+                    { text: '✅ Yes', value: 'Yes' },
+                    { text: '❌ No', value: 'No' }
+                );
+            }
+            
+            return { text: cleanedText, buttons };
+        }
+
+        /**
          * Parse markdown and render as HTML
          */
         function parseMarkdown(text) {
@@ -663,11 +734,20 @@
             const bubble = document.createElement('div');
             bubble.className = 'kylo-message-bubble';
             
-            // For assistant messages, render markdown
+            // For assistant messages, render markdown and extract buttons
             if (role === 'assistant') {
+                // Extract buttons from text if not provided
+                if (!buttons) {
+                    const parsed = extractButtons(text);
+                    text = parsed.text;
+                    if (parsed.buttons.length > 0) {
+                        buttons = parsed.buttons;
+                    }
+                }
+                
                 bubble.innerHTML = parseMarkdown(text);
                 
-                // Add buttons if provided
+                // Add buttons if available
                 if (buttons && buttons.length > 0) {
                     const buttonGroup = document.createElement('div');
                     buttonGroup.className = 'kylo-button-group';
