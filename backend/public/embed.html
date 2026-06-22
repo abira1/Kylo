@@ -316,11 +316,10 @@
                     messages: messages
                 };
                 
-                // Create debug info element
+                // Create debug info element (console only, not UI)
                 const payloadSize = JSON.stringify(payload).length;
                 const debugMsg = `URL=${apiUrl}|PK=${publicKey}|Msgs=${payload.messages.length}|Size=${payloadSize}`;
                 console.log('[KYLO DEBUG]', debugMsg);
-                addDebugMessage(debugMsg);
                 
                 const response = await fetch(apiUrl, {
                     method: 'POST',
@@ -332,14 +331,11 @@
 
                 const debugResp = `Status=${response.status}|URL=${response.url}`;
                 console.log('[KYLO DEBUG]', debugResp);
-                addDebugMessage(debugResp);
 
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('[KYLO Embed] Full error response:', errorText);
                     console.error('[KYLO Embed] Error status:', response.status);
-                    const debugError = `Error ${response.status}: ${errorText.substring(0, 200)}`;
-                    addDebugMessage(debugError);
                     throw new Error(`API error: ${response.status} ${response.statusText}`);
                 }
 
@@ -389,30 +385,6 @@
             if (role === 'user' || role === 'assistant') {
                 messages.push({ role, content: text });
             }
-
-            // Scroll to bottom
-            container.scrollTop = container.scrollHeight;
-        }
-
-        /**
-         * Add debug message to UI only (don't add to messages array)
-         */
-        function addDebugMessage(text) {
-            const container = document.getElementById('messagesContainer');
-
-            // Create debug message element
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'kylo-message debug';
-
-            const bubble = document.createElement('div');
-            bubble.className = 'kylo-message-bubble';
-            bubble.textContent = text;
-            bubble.style.fontSize = '0.85em';
-            bubble.style.opacity = '0.7';
-            bubble.style.fontFamily = 'monospace';
-
-            msgDiv.appendChild(bubble);
-            container.appendChild(msgDiv);
 
             // Scroll to bottom
             container.scrollTop = container.scrollHeight;
