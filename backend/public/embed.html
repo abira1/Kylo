@@ -259,15 +259,14 @@
 
         console.log('[KYLO Embed] Initialized with:', { publicKey, agentName, API_BASE });
 
-        // Test if fetch works
+        // Test if fetch works - test GET first (no CORS issues)
         (async () => {
             try {
-                const testResponse = await fetch(`${API_BASE}/api/health`);
-                console.log('[KYLO Embed] HEALTH TEST - Status:', testResponse.status, testResponse.statusText);
-                const testData = await testResponse.json();
-                console.log('[KYLO Embed] HEALTH TEST - Data:', testData);
+                console.log('[KYLO Embed] Testing GET /api/health');
+                const healthResp = await fetch(`${API_BASE}/api/health`, { method: 'GET' });
+                console.log('[KYLO Embed] Health check - Status:', healthResp.status);
             } catch (err) {
-                console.error('[KYLO Embed] HEALTH TEST - Error:', err);
+                console.error('[KYLO Embed] Health check error:', err);
             }
         })();
 
@@ -315,9 +314,8 @@
                 };
                 
                 // Create debug info element
-                const debugMsg = `[DEBUG] API_BASE: ${API_BASE} | URL: ${apiUrl} | PK: ${publicKey} | Msgs: ${payload.messages.length}`;
-                console.log('[KYLO Embed]', debugMsg);
-                addMessage(debugMsg, 'debug');
+                const debugMsg = `URL=${apiUrl}|PK=${publicKey}|Msgs=${payload.messages.length}`;
+                console.log('[KYLO DEBUG]', debugMsg);
                 
                 const response = await fetch(apiUrl, {
                     method: 'POST',
@@ -327,8 +325,8 @@
                     body: JSON.stringify(payload)
                 });
 
-                const debugResp = `[DEBUG] Response Status: ${response.status} ${response.statusText} | URL: ${response.url}`;
-                console.log('[KYLO Embed]', debugResp);
+                const debugResp = `Status=${response.status}|URL=${response.url}`;
+                console.log('[KYLO DEBUG]', debugResp);
                 addMessage(debugResp, 'debug');
 
                 if (!response.ok) {
