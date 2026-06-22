@@ -259,6 +259,18 @@
 
         console.log('[KYLO Embed] Initialized with:', { publicKey, agentName, API_BASE });
 
+        // Test if fetch works
+        (async () => {
+            try {
+                const testResponse = await fetch(`${API_BASE}/api/health`);
+                console.log('[KYLO Embed] HEALTH TEST - Status:', testResponse.status, testResponse.statusText);
+                const testData = await testResponse.json();
+                console.log('[KYLO Embed] HEALTH TEST - Data:', testData);
+            } catch (err) {
+                console.error('[KYLO Embed] HEALTH TEST - Error:', err);
+            }
+        })();
+
         // Notify parent that embed is ready
         window.parent.postMessage({ type: 'kylo:ready' }, '*');
 
