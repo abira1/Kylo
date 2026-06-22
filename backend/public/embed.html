@@ -701,24 +701,28 @@
             try {
                 isLoading = true;
                 document.getElementById('sendBtn').disabled = true;
+                document.getElementById('uploadBtn').disabled = true;
 
                 // Add user message about image
                 const userMsg = `📷 Uploaded: ${fileName}`;
                 addMessage(userMsg, 'user');
 
+                // Show scanning animation
+                showScanning();
+
+                // Don't add to messages array twice - only add the image indicator
+                // The actual message will be added by the API response
+
                 // Prepare payload with image
                 const payload = {
                     publicKey: publicKey,
-                    message: `[Image uploaded: ${fileName}] Please scan this passport/ID image and extract the information.`,
+                    message: `Please scan this passport/ID image and extract all information.`,
                     conversationId: conversationId || 'new',
-                    messages: messages,
+                    messages: [...messages, { role: 'user', content: 'Scanning image...' }],
                     image: imageData
                 };
 
-                messages.push({
-                    role: 'user',
-                    content: `[Image uploaded: ${fileName}]`
-                });
+                console.log('[KYLO] Sending image for processing, size:', imageData.length);
 
                 const apiUrl = `${API_BASE}/api/chat`;
                 const response = await fetch(apiUrl, {
@@ -729,31 +733,53 @@
                     body: JSON.stringify(payload)
                 });
 
+                // Remove scanning indicator
+                removeScanning();
+
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.error('[KYLO Embed] Error:', errorText);
-                    throw new Error(`API error: ${response.status}`);
+                    console.error('[KYLO Embed] API Error response:', errorText);
+                    
+                    let errorMsg = 'Failed to process image';
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        errorMsg = errorJson.message || errorJson.error || errorMsg;
+                    } catch (e) {
+                        errorMsg = errorText.substring(0, 200);
+                    }
+                    
+                    throw new Error(`API error: ${response.status} - ${errorMsg}`);
                 }
 
                 const data = await response.json();
-                console.log('[KYLO] Image response:', data);
+                console.log('[KYLO] Image processing complete');
 
                 // Update conversation ID
                 if (!conversationId && data.conversationId) {
                     conversationId = data.conversationId;
+                    console.log('[KYLO] Set conversation ID:', conversationId);
                 }
 
-                // Show AI response
+                // Show AI response with extracted data
                 if (data.reply) {
+                    // Add to messages array
+                    messages.push({ role: 'assistant', content: data.reply });
                     addMessage(data.reply, 'assistant');
+                } else {
+                    throw new Error('No response from image processing');
                 }
 
             } catch (err) {
-                console.error('[KYLO] Image send error:', err);
-                addMessage('Sorry, I couldn\'t process the image. Please try again.', 'assistant');
+                console.error('[KYLO] Image send error:', err.message);
+                removeScanning();
+                
+                // Show detailed error
+                const errorMsg = `Sorry, I couldn't process the image. Error: ${err.message}`;
+                addMessage(errorMsg, 'assistant');
             } finally {
                 isLoading = false;
                 document.getElementById('sendBtn').disabled = false;
+                document.getElementById('uploadBtn').disabled = false;
             }
         }
 

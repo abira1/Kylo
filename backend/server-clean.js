@@ -331,41 +331,85 @@ app.post('/api/chat', async (req, res) => {
     }));
 
     // Add image if provided (last user message can have image)
+    let hasImage = false;
     if (req.body.image) {
-      console.log('[CHAT] Image detected in request');
-      // Extract base64 from data URL if needed
-      let imageData = req.body.image;
-      if (imageData.startsWith('data:')) {
-        imageData = imageData.split(',')[1];
-      }
-      
-      // Find the last user message and add image content
-      const lastUserIndex = claudeMessages.length - 1;
-      if (lastUserIndex >= 0 && claudeMessages[lastUserIndex].role === 'user') {
-        claudeMessages[lastUserIndex].content = [
-          {
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: 'image/jpeg',
-              data: imageData
+      console.log('[CHAT] Image detected in request, size:', req.body.image.length, 'bytes');
+      try {
+        // Extract base64 and media type from data URL
+        let imageData = req.body.image;
+        let mediaType = 'image/jpeg'; // default
+        
+        if (imageData.startsWith('data:')) {
+          const parts = imageData.split(';base64,');
+          mediaType = parts[0].replace('data:', '');
+          imageData = parts[1] || imageData.split(',')[1];
+          console.log('[CHAT] Image media type:', mediaType);
+        }
+        
+        // Validate base64
+        if (!imageData || imageData.trim() === '') {
+          throw new Error('Invalid image data: empty after extraction');
+        }
+        
+        // Find the last user message and add image content
+        const lastUserIndex = claudeMessages.length - 1;
+        if (lastUserIndex >= 0 && claudeMessages[lastUserIndex].role === 'user') {
+          claudeMessages[lastUserIndex].content = [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: mediaType,
+                data: imageData
+              }
+            },
+            {
+              type: 'text',
+              text: claudeMessages[lastUserIndex].content
             }
-          },
-          {
-            type: 'text',
-            text: claudeMessages[lastUserIndex].content
-          }
-        ];
+          ];
+          hasImage = true;
+          console.log('[CHAT] Image added to message');
+        }
+      } catch (imageErr) {
+        console.error('[CHAT] Image processing error:', imageErr.message);
+        throw new Error(`Image processing failed: ${imageErr.message}`);
       }
     }
 
-    console.log('[CHAT] Calling Claude with', claudeMessages.length, 'messages...');
+    console.log('[CHAT] Calling Claude with', claudeMessages.length, 'messages, hasImage:', hasImage);
+    if (hasImage) {
+      console.log('[CHAT] Message structure:', JSON.stringify(claudeMessages[claudeMessages.length - 1], null, 2).substring(0, 500));
+    }
+
+    // Build passport-specific system prompt if image is present
+    let finalSystemPrompt = systemPrompt;
+    if (hasImage) {
+      finalSystemPrompt = `You are an expert passport and identity document scanner. Your task is to:
+1. Carefully examine the uploaded image of a passport, ID, or similar document
+2. Extract ALL visible information including:
+   - Full name
+   - Document number/ID number
+   - Date of birth
+   - Passport number
+   - Nationality
+   - Expiry date
+   - Issue date
+   - Place of birth
+   - Any other visible text
+3. Format the information clearly and professionally
+4. Note any unclear or missing information
+5. Warn if the document appears invalid or suspicious
+
+${systemPrompt}`;
+      console.log('[CHAT] Using passport scanning system prompt');
+    }
 
     // Call Claude
     const response = await anthropicClient.messages.create({
       model: 'claude-opus-4-5-20251101',
-      max_tokens: 1024,
-      system: systemPrompt,
+      max_tokens: 2048,
+      system: finalSystemPrompt,
       messages: claudeMessages,
     });
 
