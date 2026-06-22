@@ -324,11 +324,40 @@ app.post('/api/chat', async (req, res) => {
     const systemPrompt = await buildSystemPrompt(clientId, qaContext, messages.length);
     console.log('[CHAT] System prompt built (message count:', messages.length, ')');
 
-    // Prepare messages
+    // Prepare messages with image support
     const claudeMessages = messages.map(m => ({
       role: m.role,
       content: m.content
     }));
+
+    // Add image if provided (last user message can have image)
+    if (req.body.image) {
+      console.log('[CHAT] Image detected in request');
+      // Extract base64 from data URL if needed
+      let imageData = req.body.image;
+      if (imageData.startsWith('data:')) {
+        imageData = imageData.split(',')[1];
+      }
+      
+      // Find the last user message and add image content
+      const lastUserIndex = claudeMessages.length - 1;
+      if (lastUserIndex >= 0 && claudeMessages[lastUserIndex].role === 'user') {
+        claudeMessages[lastUserIndex].content = [
+          {
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: 'image/jpeg',
+              data: imageData
+            }
+          },
+          {
+            type: 'text',
+            text: claudeMessages[lastUserIndex].content
+          }
+        ];
+      }
+    }
 
     console.log('[CHAT] Calling Claude with', claudeMessages.length, 'messages...');
 

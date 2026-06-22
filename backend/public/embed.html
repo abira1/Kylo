@@ -258,6 +258,28 @@
             background: #4f46e5;
         }
 
+        .kylo-upload-btn {
+            background: #f3f4f6;
+            color: #6b7280;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 8px 10px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .kylo-upload-btn:hover {
+            background: #e5e7eb;
+            border-color: #d1d5db;
+        }
+
+        .kylo-upload-preview {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 8px 0;
+        }
+
         .kylo-send-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
@@ -329,6 +351,14 @@
         </div>
 
         <div class="kylo-input-area">
+            <input
+                type="file"
+                class="kylo-input"
+                id="fileInput"
+                accept="image/*"
+                style="display: none;"
+            />
+            <button class="kylo-upload-btn" id="uploadBtn" onclick="document.getElementById('fileInput').click()" aria-label="Upload image" title="Upload passport photo">📎</button>
             <input
                 type="text"
                 class="kylo-input"
@@ -636,6 +666,96 @@
         document.getElementById('messageInput').addEventListener('input', (e) => {
             document.getElementById('sendBtn').disabled = !e.target.value.trim();
         });
+
+        // Handle file upload
+        document.getElementById('fileInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Show file preview
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const container = document.getElementById('messagesContainer');
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'kylo-message user';
+                
+                const bubble = document.createElement('div');
+                bubble.className = 'kylo-message-bubble';
+                bubble.innerHTML = `<img src="${event.target.result}" class="kylo-upload-preview" style="max-width: 200px;">`;
+                
+                msgDiv.appendChild(bubble);
+                container.appendChild(msgDiv);
+                container.scrollTop = container.scrollHeight;
+
+                // Send the image
+                sendImageMessage(event.target.result, file.name);
+            };
+            reader.readAsDataURL(file);
+
+            // Reset input
+            e.target.value = '';
+        });
+
+        // Send image as message
+        async function sendImageMessage(imageData, fileName) {
+            try {
+                isLoading = true;
+                document.getElementById('sendBtn').disabled = true;
+
+                // Add user message about image
+                const userMsg = `📷 Uploaded: ${fileName}`;
+                addMessage(userMsg, 'user');
+
+                // Prepare payload with image
+                const payload = {
+                    publicKey: publicKey,
+                    message: `[Image uploaded: ${fileName}] Please scan this passport/ID image and extract the information.`,
+                    conversationId: conversationId || 'new',
+                    messages: messages,
+                    image: imageData
+                };
+
+                messages.push({
+                    role: 'user',
+                    content: `[Image uploaded: ${fileName}]`
+                });
+
+                const apiUrl = `${API_BASE}/api/chat`;
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('[KYLO Embed] Error:', errorText);
+                    throw new Error(`API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('[KYLO] Image response:', data);
+
+                // Update conversation ID
+                if (!conversationId && data.conversationId) {
+                    conversationId = data.conversationId;
+                }
+
+                // Show AI response
+                if (data.reply) {
+                    addMessage(data.reply, 'assistant');
+                }
+
+            } catch (err) {
+                console.error('[KYLO] Image send error:', err);
+                addMessage('Sorry, I couldn\'t process the image. Please try again.', 'assistant');
+            } finally {
+                isLoading = false;
+                document.getElementById('sendBtn').disabled = false;
+            }
+        }
 
         // Focus input on load
         window.addEventListener('load', () => {
