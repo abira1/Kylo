@@ -254,7 +254,8 @@
         let isLoading = false;
 
         // Get API base from parent window or use default
-        const API_BASE = window.parent.KYLO_CONFIG?.apiBase || 'https://kylo-production.up.railway.app';
+        // Make it a var to ensure it's accessible in all scopes
+        var API_BASE = (window.parent.KYLO_CONFIG && window.parent.KYLO_CONFIG.apiBase) || 'https://kylo-production.up.railway.app';
 
         console.log('[KYLO Embed] Initialized with:', { publicKey, agentName, API_BASE });
 
