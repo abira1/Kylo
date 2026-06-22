@@ -215,11 +215,35 @@ app.post('/api/test-endpoint', async (req, res) => {
  */
 app.post('/api/chat', async (req, res) => {
   try {
-    const { clientId, conversationId, messages, qaContext } = req.body;
+    let { clientId, conversationId, messages, qaContext, publicKey } = req.body;
+
+    // If publicKey is provided (from widget embed), resolve it to clientId
+    if (publicKey && !clientId) {
+      console.log(`[CHAT] Resolving publicKey: ${publicKey}`);
+      
+      if (!publicKey.startsWith('pk_live_')) {
+        return res.status(400).json({ error: 'Invalid public key format' });
+      }
+      
+      // Server-side lookup: find client by publicWidgetKey
+      const clientsSnapshot = await firestore.collection('clients')
+        .where('publicWidgetKey', '==', publicKey)
+        .limit(1)
+        .get();
+      
+      if (clientsSnapshot.empty) {
+        console.warn(`[CHAT] Public key not found: ${publicKey}`);
+        return res.status(404).json({ error: 'Widget key not found' });
+      }
+      
+      const clientDoc = clientsSnapshot.docs[0];
+      clientId = clientDoc.id;
+      console.log(`[CHAT] Resolved publicKey ${publicKey} to clientId ${clientId}`);
+    }
 
     // Validate required fields
     if (!clientId) {
-      return res.status(400).json({ error: 'clientId is required' });
+      return res.status(400).json({ error: 'clientId or publicKey is required' });
     }
     if (!conversationId) {
       return res.status(400).json({ error: 'conversationId is required' });
@@ -268,9 +292,10 @@ app.post('/api/chat', async (req, res) => {
       console.error('[CHAT] Failed to save conversation:', err.message);
     });
 
-    // Return response
+    // Return response with both 'message' and 'reply' for compatibility
     res.json({
       message: assistantMessage,
+      reply: assistantMessage, // For embed.html compatibility
       usage: {
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,

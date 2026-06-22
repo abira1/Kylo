@@ -294,7 +294,7 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        clientId: publicKey, // Use publicKey as clientId for now
+                        publicKey: publicKey, // Send publicKey for server to resolve
                         message: message,
                         conversationId: conversationId || 'new',
                         messages: messages
