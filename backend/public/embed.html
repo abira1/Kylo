@@ -334,6 +334,55 @@
             font-size: 13px;
             line-height: 1.5;
         }
+
+        /* Table Styling */
+        .kylo-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            background: white;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .kylo-table thead {
+            background: #6366f1;
+            color: white;
+        }
+
+        .kylo-table th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .kylo-table th:last-child {
+            border-right: none;
+        }
+
+        .kylo-table td {
+            padding: 10px 12px;
+            border-right: 1px solid #e5e7eb;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .kylo-table td:last-child {
+            border-right: none;
+        }
+
+        .kylo-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .kylo-table tbody tr:nth-child(odd) {
+            background: #f9fafb;
+        }
+
+        .kylo-table tbody tr:hover {
+            background: #f3f4f6;
+        }
     </style>
 </head>
 <body>
@@ -522,6 +571,9 @@
         function parseMarkdown(text) {
             let html = text;
             
+            // Parse tables first (before other markdown processing)
+            html = parseMarkdownTables(html);
+            
             // Headers
             html = html.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
             html = html.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
@@ -534,12 +586,59 @@
             // Italic
             html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
             
-            // Paragraphs
+            // Paragraphs (but not inside tables)
             html = html.replace(/\n\n/g, '</p><p>');
             html = '<p>' + html + '</p>';
             html = html.replace(/<p><\/p>/g, '');
             
             return html;
+        }
+
+        /**
+         * Parse markdown tables and convert to HTML
+         */
+        function parseMarkdownTables(text) {
+            // Regex to match markdown tables
+            const tableRegex = /(\|.*\n)+?(\|[-:\s|]+\n)(\|.*\n)*/g;
+            
+            return text.replace(tableRegex, (match) => {
+                const lines = match.trim().split('\n');
+                if (lines.length < 2) return match;
+                
+                // Parse header
+                const headerCells = lines[0]
+                    .split('|')
+                    .map(cell => cell.trim())
+                    .filter(cell => cell.length > 0);
+                
+                if (headerCells.length === 0) return match;
+                
+                // Build HTML table
+                let table = '<table class="kylo-table"><thead><tr>';
+                headerCells.forEach(cell => {
+                    table += `<th>${cell}</th>`;
+                });
+                table += '</tr></thead><tbody>';
+                
+                // Parse rows (skip separator line)
+                for (let i = 2; i < lines.length; i++) {
+                    const rowCells = lines[i]
+                        .split('|')
+                        .map(cell => cell.trim())
+                        .filter(cell => cell.length > 0);
+                    
+                    if (rowCells.length === 0) continue;
+                    
+                    table += '<tr>';
+                    rowCells.forEach(cell => {
+                        table += `<td>${cell}</td>`;
+                    });
+                    table += '</tr>';
+                }
+                
+                table += '</tbody></table>';
+                return table;
+            });
         }
 
         /**
