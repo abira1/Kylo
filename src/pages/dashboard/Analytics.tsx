@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   BarChart,
   Bar,
@@ -11,6 +11,7 @@ import {
   Pie,
   Cell } from
 'recharts';
+import { RefreshCw } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useRealtimeData } from '../../hooks/useData';
 import { subscribeToChartData, ChartDataPoint } from '../../services/dataService';
@@ -151,8 +152,6 @@ export function Analytics() {
   const [crmProvider, setCrmProvider] = useState<string | null>(null);
   const [crmLeads, setCrmLeads] = useState<CrmAnalyticsLead[]>([]);
   const [crmLoading, setCrmLoading] = useState(false);
-  const crmConnectedRef = useRef(false);
-  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const subscribe = useCallback((cb: (data: ChartDataPoint[]) => void) => {
     if (user?.uid) {
@@ -167,53 +166,32 @@ export function Analytics() {
     []
   );
 
-  // Poll Zoho leads in realtime when a CRM is connected
-  useEffect(() => {
+  // Load Zoho leads (manual — triggered on mount and via the Refresh button)
+  const loadCrmLeads = useCallback(async (showSpinner: boolean) => {
     if (!user?.uid) return;
-    let cancelled = false;
+    try {
+      const status = await getConnectionStatus();
+      const hasCrm = !!status?.provider && status?.status !== 'disconnected';
+      setCrmConnected(hasCrm);
+      setCrmProvider(hasCrm ? status.provider : null);
 
-    const loadCrmLeads = async (isInitial: boolean) => {
-      try {
-        const status = await getConnectionStatus();
-        const hasCrm = !!status?.provider && status?.status !== 'disconnected';
-        if (cancelled) return;
-
-        crmConnectedRef.current = hasCrm;
-        setCrmConnected(hasCrm);
-        setCrmProvider(hasCrm ? status.provider : null);
-
-        if (hasCrm) {
-          if (isInitial) setCrmLoading(true);
-          const leads = await fetchCrmLeads(1, 200);
-          if (cancelled) return;
-          setCrmLeads(Array.isArray(leads) ? (leads as CrmAnalyticsLead[]) : []);
-        }
-      } catch (err) {
-        console.error('[ANALYTICS] Failed to load CRM analytics:', err);
-        // Keep last known data; do not wipe the dashboard on a transient error
-      } finally {
-        if (!cancelled && isInitial) setCrmLoading(false);
+      if (hasCrm) {
+        if (showSpinner) setCrmLoading(true);
+        const leads = await fetchCrmLeads(1, 200);
+        setCrmLeads(Array.isArray(leads) ? (leads as CrmAnalyticsLead[]) : []);
       }
-    };
-
-    const scheduleNext = () => {
-      // Gentle cadence for the external CRM API to avoid rate limits
-      pollTimerRef.current = setTimeout(async () => {
-        if (cancelled) return;
-        await loadCrmLeads(false);
-        scheduleNext();
-      }, 20000);
-    };
-
-    loadCrmLeads(true).then(() => {
-      if (!cancelled) scheduleNext();
-    });
-
-    return () => {
-      cancelled = true;
-      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
-    };
+    } catch (err) {
+      console.error('[ANALYTICS] Failed to load CRM analytics:', err);
+      // Keep last known data; do not wipe the dashboard on a transient error
+    } finally {
+      if (showSpinner) setCrmLoading(false);
+    }
   }, [user?.uid]);
+
+  // Initial load only — no auto-polling (refresh is manual)
+  useEffect(() => {
+    loadCrmLeads(true);
+  }, [loadCrmLeads]);
 
   // Derived analytics from Zoho leads (recomputed as leads/timeframe change)
   const crmStatusData = useMemo(() => buildStatusData(crmLeads), [crmLeads]);
@@ -257,24 +235,35 @@ export function Analytics() {
           </h1>
           <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
             {crmConnected
-              ? `Live insights from your ${(crmProvider || 'CRM').toUpperCase()} leads.`
+              ? `Insights from your ${(crmProvider || 'CRM').toUpperCase()} leads.`
               : "Deep dive into your AI's performance and lead generation."}
           </p>
           {crmConnected && (
             <span className="inline-flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              Live from {(crmProvider || 'CRM').toUpperCase()}
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              Synced from {(crmProvider || 'CRM').toUpperCase()}
             </span>
           )}
         </div>
-        <select
-          value={timeframe}
-          onChange={(e) => setTimeframe(e.target.value)}
-          className="bg-white dark:bg-navy-800 border-none rounded-xl px-4 py-2 text-sm text-gray-700 dark:text-gray-300 outline-none shadow-soft dark:shadow-soft-dark font-medium w-full sm:w-auto">
-          <option>Last 30 Days</option>
-          <option>Last 90 Days</option>
-          <option>Year to Date</option>
-        </select>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {crmConnected && (
+            <button
+              onClick={() => loadCrmLeads(true)}
+              disabled={crmLoading}
+              className="inline-flex items-center gap-2 bg-white dark:bg-navy-800 rounded-xl px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-soft dark:shadow-soft-dark outline-none hover:opacity-90 disabled:opacity-60">
+              <RefreshCw size={15} className={crmLoading ? 'animate-spin' : ''} />
+              Refresh
+            </button>
+          )}
+          <select
+            value={timeframe}
+            onChange={(e) => setTimeframe(e.target.value)}
+            className="bg-white dark:bg-navy-800 border-none rounded-xl px-4 py-2 text-sm text-gray-700 dark:text-gray-300 outline-none shadow-soft dark:shadow-soft-dark font-medium flex-1 sm:flex-none">
+            <option>Last 30 Days</option>
+            <option>Last 90 Days</option>
+            <option>Year to Date</option>
+          </select>
+        </div>
       </div>
 
       {/* Row 1: Lead Status Cards */}

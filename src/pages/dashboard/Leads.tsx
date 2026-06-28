@@ -199,20 +199,9 @@ export function Leads() {
       await confirmCrmSource();
       if (cancelled) return;
 
-      // Initial fetch
+      // Initial fetch. Subsequent updates are manual via the Refresh button
+      // (no auto-polling, to avoid hammering the CRM's rate limits).
       fetchLeads(false);
-
-      // Auto-refresh on a self-scheduling timer. CRM sources poll gently
-      // (external API, rate-limited); the local DB can poll more frequently.
-      const scheduleNext = () => {
-        const delay = crmConnectedRef.current ? 20000 : 5000;
-        refreshIntervalRef.current = setTimeout(async () => {
-          if (cancelled) return;
-          await fetchLeads(true);
-          scheduleNext();
-        }, delay);
-      };
-      scheduleNext();
     };
 
     init();

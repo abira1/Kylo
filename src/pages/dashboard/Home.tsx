@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users,
@@ -8,6 +8,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Clock,
+  RefreshCw,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -38,7 +39,7 @@ export function Home() {
   const [crmConnected, setCrmConnected] = useState(false);
   const [crmProvider, setCrmProvider] = useState<string | null>(null);
   const [crmLeads, setCrmLeads] = useState<HomeCrmLead[]>([]);
-  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [crmLoading, setCrmLoading] = useState(false);
 
   // Subscribe to chart data from Firebase
   const { data: chartData = [] } = useRealtimeData(
@@ -52,46 +53,31 @@ export function Home() {
     []
   );
 
-  // Poll Zoho leads in realtime when a CRM is connected
-  useEffect(() => {
+  // Load Zoho leads (manual — triggered on mount and via the Refresh button)
+  const loadCrmLeads = useCallback(async () => {
     if (!user?.uid) return;
-    let cancelled = false;
-
-    const loadCrmLeads = async () => {
-      try {
-        const status = await getConnectionStatus();
-        const hasCrm = !!status?.provider && status?.status !== 'disconnected';
-        if (cancelled) return;
-        setCrmConnected(hasCrm);
-        setCrmProvider(hasCrm ? status.provider : null);
-        if (hasCrm) {
-          const leads = await fetchCrmLeads(1, 200);
-          if (cancelled) return;
-          setCrmLeads(Array.isArray(leads) ? (leads as HomeCrmLead[]) : []);
-        }
-      } catch (err) {
-        console.error('[HOME] Failed to load CRM leads:', err);
-        // Keep last known data on transient errors
+    try {
+      setCrmLoading(true);
+      const status = await getConnectionStatus();
+      const hasCrm = !!status?.provider && status?.status !== 'disconnected';
+      setCrmConnected(hasCrm);
+      setCrmProvider(hasCrm ? status.provider : null);
+      if (hasCrm) {
+        const leads = await fetchCrmLeads(1, 200);
+        setCrmLeads(Array.isArray(leads) ? (leads as HomeCrmLead[]) : []);
       }
-    };
-
-    const scheduleNext = () => {
-      pollTimerRef.current = setTimeout(async () => {
-        if (cancelled) return;
-        await loadCrmLeads();
-        scheduleNext();
-      }, 20000);
-    };
-
-    loadCrmLeads().then(() => {
-      if (!cancelled) scheduleNext();
-    });
-
-    return () => {
-      cancelled = true;
-      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
-    };
+    } catch (err) {
+      console.error('[HOME] Failed to load CRM leads:', err);
+      // Keep last known data on transient errors
+    } finally {
+      setCrmLoading(false);
+    }
   }, [user?.uid]);
+
+  // Initial load only — no auto-polling (refresh is manual)
+  useEffect(() => {
+    loadCrmLeads();
+  }, [loadCrmLeads]);
 
   if (authLoading) {
     return (
@@ -147,6 +133,15 @@ export function Home() {
           </p>
         </div>
         <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
+          {crmConnected && (
+            <button
+              onClick={loadCrmLeads}
+              disabled={crmLoading}
+              className="btn-secondary text-xs sm:text-sm flex-1 sm:flex-none inline-flex items-center justify-center gap-2 disabled:opacity-60">
+              <RefreshCw size={15} className={crmLoading ? 'animate-spin' : ''} />
+              Refresh
+            </button>
+          )}
           <button className="btn-secondary text-xs sm:text-sm flex-1 sm:flex-none">
             Download Report
           </button>
