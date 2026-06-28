@@ -29,6 +29,51 @@ interface HomeCrmLead {
   name?: string;
   businessType?: string;
   status?: string;
+  lastModified?: string;
+}
+
+const HOME_MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// Build an engagement trend (leads over time) from CRM leads for the Home chart
+function buildEngagementData(leads: HomeCrmLead[], timeRange: string): { name: string; leads: number }[] {
+  const days = timeRange === 'year' ? 365 : timeRange === '30days' ? 30 : 7;
+  const granularity: 'day' | 'month' = days > 92 ? 'month' : 'day';
+
+  const now = new Date();
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(now.getDate() - (days - 1));
+
+  const keyFor = (d: Date) =>
+    granularity === 'month'
+      ? `${d.getFullYear()}-${d.getMonth()}`
+      : `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  const labelFor = (d: Date) =>
+    granularity === 'month'
+      ? HOME_MONTH_NAMES[d.getMonth()]
+      : `${HOME_MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+
+  const buckets: { name: string; leads: number }[] = [];
+  const indexByKey = new Map<string, number>();
+  const cursor = new Date(start);
+  while (cursor <= now) {
+    const key = keyFor(cursor);
+    if (!indexByKey.has(key)) {
+      indexByKey.set(key, buckets.length);
+      buckets.push({ name: labelFor(cursor), leads: 0 });
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  for (const lead of leads) {
+    if (!lead.lastModified) continue;
+    const d = new Date(lead.lastModified);
+    if (isNaN(d.getTime()) || d < start) continue;
+    const idx = indexByKey.get(keyFor(d));
+    if (idx !== undefined) buckets[idx].leads += 1;
+  }
+
+  return buckets;
 }
 
 export function Home() {
@@ -119,6 +164,15 @@ export function Home() {
         badge: `Score: ${l.score}`,
       }));
 
+  // Engagement Overview chart: leads-over-time from CRM when connected,
+  // otherwise the Firebase visitors/interactions series
+  const engagementData = crmConnected
+    ? buildEngagementData(crmLeads, timeRange)
+    : (chartData || []);
+  const hasEngagementData = crmConnected
+    ? engagementData.some((d) => (d as { leads: number }).leads > 0)
+    : engagementData.length > 0;
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5">
@@ -205,10 +259,10 @@ export function Home() {
             </select>
           </div>
           <div className="h-56 sm:h-72 w-full">
-            {chartData && chartData.length > 0 ? (
+            {hasEngagementData ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
-                  data={chartData}
+                  data={engagementData}
                   margin={{
                     top: 10,
                     right: 10,
@@ -230,6 +284,10 @@ export function Home() {
                     >
                       <stop offset="5%" stopColor="#38BDF8" stopOpacity={0.4} />
                       <stop offset="95%" stopColor="#38BDF8" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorLeads" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#22D3EE" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#22D3EE" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid
@@ -254,6 +312,7 @@ export function Home() {
                   <YAxis
                     axisLine={false}
                     tickLine={false}
+                    allowDecimals={false}
                     tick={{
                       fontSize: 12,
                       fill: '#64748b',
@@ -283,6 +342,7 @@ export function Home() {
                     strokeWidth={3}
                     fillOpacity={1}
                     fill="url(#colorVisitors)"
+                    hide={crmConnected}
                   />
 
                   <Area
@@ -292,12 +352,28 @@ export function Home() {
                     strokeWidth={3}
                     fillOpacity={1}
                     fill="url(#colorInteractions)"
+                    hide={crmConnected}
+                  />
+
+                  <Area
+                    type="monotone"
+                    dataKey="leads"
+                    name="Leads"
+                    stroke="#22D3EE"
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#colorLeads)"
+                    hide={!crmConnected}
                   />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
               <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
-                <p>No data available yet. Start conversations to see engagement metrics.</p>
+                <p>
+                  {crmConnected
+                    ? 'No leads in this period yet. Try a wider time range.'
+                    : 'No data available yet. Start conversations to see engagement metrics.'}
+                </p>
               </div>
             )}
           </div>
