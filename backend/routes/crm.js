@@ -260,7 +260,9 @@ router.post('/leads', async (req, res) => {
       return res.status(400).json({ error: 'No CRM connection found' });
     }
 
-    if (connection.status !== 'connected') {
+    // Allow self-heal: only reject if explicitly disconnected. A transient
+    // 'error' state (e.g. rate limit) is recovered by getValidAccessToken.
+    if (connection.status === 'disconnected') {
       return res.status(400).json({ error: 'CRM connection is not active' });
     }
 
@@ -310,7 +312,7 @@ router.post('/leads/detail', async (req, res) => {
       return res.status(400).json({ error: 'No CRM connection found' });
     }
 
-    if (connection.status !== 'connected') {
+    if (connection.status === 'disconnected') {
       return res.status(400).json({ error: 'CRM connection is not active' });
     }
 
@@ -356,7 +358,7 @@ router.post('/leads/create', async (req, res) => {
       return res.status(400).json({ error: 'No CRM connection found' });
     }
 
-    if (connection.status !== 'connected') {
+    if (connection.status === 'disconnected') {
       return res.status(400).json({ error: 'CRM connection is not active' });
     }
 
@@ -417,7 +419,7 @@ router.post('/sync', async (req, res) => {
       return res.status(400).json({ error: 'No CRM connection found' });
     }
 
-    if (connection.status !== 'connected') {
+    if (connection.status === 'disconnected') {
       return res.status(400).json({ error: 'CRM connection is not active' });
     }
 
