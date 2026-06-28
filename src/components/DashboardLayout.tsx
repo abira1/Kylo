@@ -4,7 +4,6 @@ import { useTheme } from './ThemeProvider';
 import {
   LayoutDashboard,
   Settings as SettingsIcon,
-  MessageSquare,
   Users,
   CreditCard,
   BarChart3,
@@ -37,11 +36,6 @@ const NAV_ITEMS = [
   path: '/dashboard/leads',
   label: 'Lead Inbox',
   icon: Users
-},
-{
-  path: '/dashboard/conversations',
-  label: 'Conversations',
-  icon: MessageSquare
 },
 {
   path: '/dashboard/whatsapp',
