@@ -76,6 +76,26 @@ export function Leads() {
     extractedData: l.custom_fields,
   });
 
+  // Re-confirm whether a CRM (e.g. Zoho) is connected. Returns the connection
+  // state and updates the badge. Resilient: on failure keeps the last known value.
+  const confirmCrmSource = async (): Promise<boolean> => {
+    // Can only check once we have an authenticated user
+    if (!user?.uid) {
+      return crmConnectedRef.current;
+    }
+    try {
+      const status = await getConnectionStatus();
+      const connected = !!status?.connected && status?.status === 'connected';
+      crmConnectedRef.current = connected;
+      setCrmConnected(connected);
+      setCrmProvider(connected ? status.provider : null);
+      return connected;
+    } catch (e) {
+      // Could not determine right now -> keep last known source
+      return crmConnectedRef.current;
+    }
+  };
+
   // Function to fetch leads
   const fetchLeads = async (isRefresh = false) => {
     try {
@@ -86,14 +106,18 @@ export function Leads() {
         setRefreshing(true);
       }
 
-      // When a CRM (e.g. Zoho) is connected, the inbox is sourced ENTIRELY
-      // from the CRM and the local database is ignored.
-      if (crmConnectedRef.current) {
+      // Always re-confirm the source so the inbox can NEVER get stuck on the
+      // wrong one. When a CRM is connected, the inbox is sourced ENTIRELY from
+      // the CRM and the local database is ignored.
+      const connected = await confirmCrmSource();
+
+      if (connected) {
         try {
           const crmLeads = await fetchCrmLeads(1, 100);
           console.log('[LEADS] Fetched', crmLeads.length, 'leads from CRM');
           setLeads(crmLeads.map(mapCrmLead));
         } catch (crmError) {
+          // Connected but fetch failed -> show empty CRM state, never local
           console.error('[LEADS] CRM fetch failed:', crmError);
           if (!isRefresh) {
             setLeads([]);
@@ -158,25 +182,10 @@ export function Leads() {
     let cancelled = false;
 
     const init = async () => {
-      // First determine whether a CRM (e.g. Zoho) is connected. If so, the
-      // inbox shows ONLY CRM leads and ignores the local database.
-      try {
-        const status = await getConnectionStatus();
-        const connected = !!status.connected && status.status === 'connected';
-        if (!cancelled) {
-          crmConnectedRef.current = connected;
-          setCrmConnected(connected);
-          setCrmProvider(connected ? status.provider : null);
-        }
-      } catch (e) {
-        // No connection / not authenticated yet -> fall back to local DB
-        if (!cancelled) {
-          crmConnectedRef.current = false;
-          setCrmConnected(false);
-          setCrmProvider(null);
-        }
-      }
-
+      // Determine the source up-front (so the badge appears immediately),
+      // then fetch. fetchLeads also re-confirms the source on every call,
+      // so this is self-healing even if the first check races with auth.
+      await confirmCrmSource();
       if (cancelled) return;
 
       // Initial fetch
