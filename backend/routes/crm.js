@@ -76,6 +76,18 @@ router.get('/oauth/authorize', async (req, res) => {
     let authUrl;
 
     if (provider === 'zoho') {
+      // Fail fast with a clear message if the Zoho app credentials are not
+      // configured on the server, instead of sending client_id=undefined to
+      // Zoho (which produces a confusing "Invalid Client" error).
+      if (!process.env.ZOHO_CLIENT_ID || !process.env.ZOHO_CLIENT_SECRET) {
+        console.error('[CRM_ROUTES] ZOHO_CLIENT_ID/ZOHO_CLIENT_SECRET not configured');
+        return res.redirect(
+          `${FRONTEND_URL}/dashboard/settings?tab=integrations&error=${encodeURIComponent(
+            'Zoho is not configured on the server yet. Please add ZOHO_CLIENT_ID and ZOHO_CLIENT_SECRET.'
+          )}`
+        );
+      }
+
       const accountsDomain = `accounts.zoho${region}`;
       const redirectUri = `${BACKEND_URL}/api/crm/oauth/callback`;
 
