@@ -15,6 +15,7 @@ const kbRoutes = require('./routes/knowledgeBase');
 const adminKbRoutes = require('./routes/admin-kb-upload');
 const kyloAIRoutes = require('./routes/kylo-ai-sessions');
 const adminRoutes = require('./routes/admin');
+const crmRoutes = require('./routes/crm');
 
 console.log('[STARTUP] Anthropic imported');
 console.log('[STARTUP] Creating client...');
@@ -808,6 +809,9 @@ app.use('/api/kylo', kyloAIRoutes);
 
 // Admin Dashboard routes (WEEK 6)
 app.use('/api/kylo/admin', adminRoutes);
+
+// CRM Integration routes (NEW)
+app.use('/api/crm', crmRoutes);
 
 app.listen(PORT, () => {
   console.log(`\n🚀 Multi-tenant server running on port ${PORT}\n`);

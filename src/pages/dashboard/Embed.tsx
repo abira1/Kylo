@@ -244,7 +244,8 @@ export function Embed() {
       position: 'bottom-right',
       apiBase: 'https://kylo-production.up.railway.app',
       debug: true,
-      container: 'preview-container'
+      container: 'preview-container',
+      welcomeMsg: welcomeMsg
     };
     
     // Inject widget.js script
@@ -273,7 +274,8 @@ export function Embed() {
   const embedCode = `<script>
   window.KYLO_CONFIG = {
     publicKey: "${publicWidgetKey}",
-    position: "bottom-right"
+    position: "bottom-right",
+    welcomeMsg: "${welcomeMsg}"
   };
 </script>
 <script src="https://kylo-production.up.railway.app/widget.js" async></script>`;
@@ -285,7 +287,8 @@ export function Embed() {
   const embedCodeReact = `useEffect(() => {
   window.KYLO_CONFIG = {
     publicKey: "${publicWidgetKey}",
-    position: "bottom-right"
+    position: "bottom-right",
+    welcomeMsg: "${welcomeMsg}"
   };
   const script = document.createElement('script');
   script.src = 'https://kylo-production.up.railway.app/widget.js';

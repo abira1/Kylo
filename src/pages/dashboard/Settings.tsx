@@ -1,7 +1,17 @@
 import React, { useState } from 'react';
-import { User, Shield, Key, Bell, Building } from 'lucide-react';
+import { User, Shield, Key, Bell, Building, Zap } from 'lucide-react';
+import { CrmIntegrationPanel } from '../../components/CrmIntegrationPanel';
 export function Settings() {
-  const [activeTab, setActiveTab] = useState('account');
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const tab = new URLSearchParams(window.location.search).get('tab');
+      const valid = ['account', 'team', 'security', 'integrations', 'api', 'notifications'];
+      if (tab && valid.includes(tab)) {
+        return tab;
+      }
+    }
+    return 'account';
+  });
   const tabs = [
   {
     id: 'account',
@@ -17,6 +27,11 @@ export function Settings() {
     id: 'security',
     label: 'Security',
     icon: Shield
+  },
+  {
+    id: 'integrations',
+    label: 'Integrations',
+    icon: Zap
   },
   {
     id: 'api',
@@ -182,6 +197,21 @@ export function Settings() {
                   </div>
                 </div>
               </div>
+            </div>
+          }
+
+          {activeTab === 'integrations' &&
+          <div className="bento-card space-y-6">
+              <div className="border-b border-gray-100 dark:border-navy-800 pb-4">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                  CRM Integrations
+                </h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                  Connect your CRM to automatically sync leads and manage your contacts.
+                </p>
+              </div>
+
+              <CrmIntegrationPanel />
             </div>
           }
 

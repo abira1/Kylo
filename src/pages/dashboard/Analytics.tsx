@@ -32,9 +32,17 @@ const PIE_DATA = [
 
 const COLORS = ['#22C55E', '#38BDF8', '#475569'];
 
+const LEAD_STATUS_DATA = [
+  { name: 'New', count: 24, color: '#3B82F6', bgColor: '#DBEAFE' },
+  { name: 'Ongoing', count: 18, color: '#8B5CF6', bgColor: '#EDE9FE' },
+  { name: 'Pending', count: 12, color: '#F59E0B', bgColor: '#FEF3C7' },
+  { name: 'Complete', count: 31, color: '#10B981', bgColor: '#D1FAE5' }
+];
+
 export function Analytics() {
   const { user, loading: authLoading } = useAuth();
   const [timeframe, setTimeframe] = useState('Last 30 Days');
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
 
   const subscribe = useCallback((cb: (data: ChartDataPoint[]) => void) => {
     if (user?.uid) {
@@ -86,13 +94,63 @@ export function Analytics() {
         </select>
       </div>
 
+      {/* Row 1: Lead Status Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        {LEAD_STATUS_DATA.map((status) => {
+          const total = LEAD_STATUS_DATA.reduce((sum, s) => sum + s.count, 0);
+          const percentage = ((status.count / total) * 100).toFixed(1);
+          return (
+            <div
+              key={status.name}
+              onClick={() => setSelectedStatus(selectedStatus === status.name ? null : status.name)}
+              className={`bento-card flex flex-col p-4 sm:p-5 transition-all cursor-pointer group hover:shadow-lg ${
+                selectedStatus === status.name
+                  ? 'ring-2'
+                  : ''
+              }`}
+              style={{
+                borderColor: selectedStatus === status.name ? status.color : 'transparent',
+                backgroundColor: selectedStatus === status.name ? status.bgColor + '15' : 'transparent'
+              }}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-4 h-4 rounded-full shadow-sm group-hover:scale-110 transition-transform"
+                    style={{ backgroundColor: status.color }}
+                  ></div>
+                  <span className="font-bold text-sm sm:text-base text-gray-900 dark:text-white">
+                    {status.name}
+                  </span>
+                </div>
+              </div>
+              <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-3">
+                {status.count}
+              </div>
+              <div className="w-full rounded-full h-1.5 overflow-hidden bg-gray-200 dark:bg-navy-700 mb-2">
+                <div
+                  className="h-full transition-all duration-300"
+                  style={{
+                    width: `${percentage}%`,
+                    backgroundColor: status.color
+                  }}
+                ></div>
+              </div>
+              <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                {percentage}% of total
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Row 2: Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
         {/* Lead Generation Chart */}
         <div className="bento-card">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-5">
             Lead Generation Trend
           </h2>
-          <div className="h-56 sm:h-72">
+          <div className="h-64 sm:h-80">
             {dataLoading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
@@ -164,13 +222,13 @@ export function Analytics() {
           </div>
         </div>
 
-        {/* Traffic Sources */}
+        {/* Conversation Sources */}
         <div className="bento-card flex flex-col">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-5">
             Conversation Sources
           </h2>
           <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-0">
-            <div className="h-48 sm:h-56 w-full sm:w-1/2">
+            <div className="h-56 sm:h-64 w-full sm:w-1/2">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -222,53 +280,52 @@ export function Analytics() {
             </div>
           </div>
         </div>
-
-        {/* Stats Grid */}
-        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-5">
-          <div className="bento-card flex flex-col justify-between">
-            <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">
-              Total Leads
-            </div>
-            <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              {totalLeads}
-            </div>
-            <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-mint-100 dark:bg-emerald-900/20 px-2.5 py-1 rounded-full self-start">
-              {timeframe}
-            </div>
+      </div>
+      {/* Row 3: Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        <div className="bento-card flex flex-col justify-between">
+          <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">
+            Total Leads
           </div>
-          <div className="bento-card flex flex-col justify-between">
-            <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">
-              Avg. Per Day
-            </div>
-            <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              {avgLeads}
-            </div>
-            <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-mint-100 dark:bg-emerald-900/20 px-2.5 py-1 rounded-full self-start">
-              Based on data
-            </div>
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            {totalLeads}
           </div>
-          <div className="bento-card flex flex-col justify-between">
-            <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">
-              CSAT Score
-            </div>
-            <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              4.8
-              <span className="text-sm sm:text-base text-gray-400">/5.0</span>
-            </div>
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-navy-700 px-2.5 py-1 rounded-full self-start">
-              Based on ratings
-            </div>
+          <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-mint-100 dark:bg-emerald-900/20 px-2.5 py-1 rounded-full self-start">
+            {timeframe}
           </div>
-          <div className="bento-card flex flex-col justify-between">
-            <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">
-              Human Handoff Rate
-            </div>
-            <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              8.2%
-            </div>
-            <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-mint-100 dark:bg-emerald-900/20 px-2.5 py-1 rounded-full self-start">
-              Optimal range
-            </div>
+        </div>
+        <div className="bento-card flex flex-col justify-between">
+          <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">
+            Avg. Per Day
+          </div>
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            {avgLeads}
+          </div>
+          <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-mint-100 dark:bg-emerald-900/20 px-2.5 py-1 rounded-full self-start">
+            Based on data
+          </div>
+        </div>
+        <div className="bento-card flex flex-col justify-between">
+          <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">
+            CSAT Score
+          </div>
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            4.8
+            <span className="text-sm sm:text-base text-gray-400">/5.0</span>
+          </div>
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-navy-700 px-2.5 py-1 rounded-full self-start">
+            Based on ratings
+          </div>
+        </div>
+        <div className="bento-card flex flex-col justify-between">
+          <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">
+            Human Handoff Rate
+          </div>
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            8.2%
+          </div>
+          <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-mint-100 dark:bg-emerald-900/20 px-2.5 py-1 rounded-full self-start">
+            Optimal range
           </div>
         </div>
       </div>
