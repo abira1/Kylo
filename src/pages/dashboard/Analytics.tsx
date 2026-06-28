@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   BarChart,
   Bar,
@@ -14,6 +14,7 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { useRealtimeData } from '../../hooks/useData';
 import { subscribeToChartData, ChartDataPoint } from '../../services/dataService';
+import { getConnectionStatus, fetchLeads as fetchCrmLeads } from '../../services/crmService';
 
 const PIE_DATA = [
   {
@@ -30,7 +31,7 @@ const PIE_DATA = [
   }
 ];
 
-const COLORS = ['#22C55E', '#38BDF8', '#475569'];
+const COLORS = ['#22C55E', '#38BDF8', '#475569', '#F59E0B', '#8B5CF6'];
 
 const LEAD_STATUS_DATA = [
   { name: 'New', count: 24, color: '#3B82F6', bgColor: '#DBEAFE' },
@@ -39,10 +40,119 @@ const LEAD_STATUS_DATA = [
   { name: 'Complete', count: 31, color: '#10B981', bgColor: '#D1FAE5' }
 ];
 
+// ---- Realtime CRM (Zoho) analytics helpers --------------------------------
+
+interface CrmAnalyticsLead {
+  status?: string;
+  businessType?: string;
+  lastModified?: string;
+}
+
+// Group normalized lead statuses into 4 display buckets
+const STATUS_BUCKETS: { name: string; match: string[]; color: string; bgColor: string }[] = [
+  { name: 'New', match: ['new'], color: '#3B82F6', bgColor: '#DBEAFE' },
+  { name: 'In Progress', match: ['contacted', 'qualified'], color: '#8B5CF6', bgColor: '#EDE9FE' },
+  { name: 'Won', match: ['won'], color: '#10B981', bgColor: '#D1FAE5' },
+  { name: 'Lost', match: ['lost'], color: '#EF4444', bgColor: '#FEE2E2' }
+];
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function getWindowDays(timeframe: string): number {
+  if (timeframe === 'Last 90 Days') return 90;
+  if (timeframe === 'Year to Date') {
+    const start = new Date(new Date().getFullYear(), 0, 1).getTime();
+    return Math.max(1, Math.ceil((Date.now() - start) / 86400000) + 1);
+  }
+  return 30;
+}
+
+function buildStatusData(leads: CrmAnalyticsLead[]) {
+  return STATUS_BUCKETS.map((bucket) => ({
+    name: bucket.name,
+    count: leads.filter((l) => bucket.match.includes((l.status || '').toLowerCase())).length,
+    color: bucket.color,
+    bgColor: bucket.bgColor
+  }));
+}
+
+function buildTrendData(leads: CrmAnalyticsLead[], timeframe: string): { name: string; leads: number }[] {
+  const days = getWindowDays(timeframe);
+  const granularity: 'day' | 'week' | 'month' = days <= 31 ? 'day' : days <= 92 ? 'week' : 'month';
+
+  const now = new Date();
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(now.getDate() - (days - 1));
+
+  const keyFor = (d: Date) => {
+    if (granularity === 'day') return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    if (granularity === 'week') {
+      const ws = new Date(d);
+      ws.setHours(0, 0, 0, 0);
+      ws.setDate(d.getDate() - d.getDay());
+      return `${ws.getFullYear()}-${ws.getMonth()}-${ws.getDate()}`;
+    }
+    return `${d.getFullYear()}-${d.getMonth()}`;
+  };
+  const labelFor = (d: Date) => {
+    if (granularity === 'month') return MONTH_NAMES[d.getMonth()];
+    return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+  };
+
+  const buckets: { name: string; leads: number }[] = [];
+  const indexByKey = new Map<string, number>();
+  const cursor = new Date(start);
+  while (cursor <= now) {
+    const key = keyFor(cursor);
+    if (!indexByKey.has(key)) {
+      indexByKey.set(key, buckets.length);
+      buckets.push({ name: labelFor(cursor), leads: 0 });
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  for (const lead of leads) {
+    if (!lead.lastModified) continue;
+    const d = new Date(lead.lastModified);
+    if (isNaN(d.getTime()) || d < start) continue;
+    const idx = indexByKey.get(keyFor(d));
+    if (idx !== undefined) buckets[idx].leads += 1;
+  }
+
+  return buckets;
+}
+
+function buildSourceData(leads: CrmAnalyticsLead[]): { name: string; value: number }[] {
+  const counts: Record<string, number> = {};
+  for (const l of leads) {
+    const bt = (l.businessType || '').toLowerCase();
+    let src = 'Other';
+    if (bt.includes('whatsapp')) src = 'WhatsApp';
+    else if (bt.includes('instagram')) src = 'Instagram';
+    else if (bt.includes('facebook') || bt.includes('messenger')) src = 'Facebook';
+    else if (bt.includes('web') || bt.includes('kylo')) src = 'Website';
+    counts[src] = (counts[src] || 0) + 1;
+  }
+  const total = leads.length || 1;
+  return Object.entries(counts)
+    .map(([name, count]) => ({ name, value: Math.round((count / total) * 100), count }))
+    .sort((a, b) => b.count - a.count)
+    .map(({ name, value }) => ({ name, value }));
+}
+
 export function Analytics() {
   const { user, loading: authLoading } = useAuth();
   const [timeframe, setTimeframe] = useState('Last 30 Days');
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
+
+  // ---- Realtime CRM (Zoho) state ----
+  const [crmConnected, setCrmConnected] = useState(false);
+  const [crmProvider, setCrmProvider] = useState<string | null>(null);
+  const [crmLeads, setCrmLeads] = useState<CrmAnalyticsLead[]>([]);
+  const [crmLoading, setCrmLoading] = useState(false);
+  const crmConnectedRef = useRef(false);
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const subscribe = useCallback((cb: (data: ChartDataPoint[]) => void) => {
     if (user?.uid) {
@@ -57,6 +167,59 @@ export function Analytics() {
     []
   );
 
+  // Poll Zoho leads in realtime when a CRM is connected
+  useEffect(() => {
+    if (!user?.uid) return;
+    let cancelled = false;
+
+    const loadCrmLeads = async (isInitial: boolean) => {
+      try {
+        const status = await getConnectionStatus();
+        const hasCrm = !!status?.provider && status?.status !== 'disconnected';
+        if (cancelled) return;
+
+        crmConnectedRef.current = hasCrm;
+        setCrmConnected(hasCrm);
+        setCrmProvider(hasCrm ? status.provider : null);
+
+        if (hasCrm) {
+          if (isInitial) setCrmLoading(true);
+          const leads = await fetchCrmLeads(1, 200);
+          if (cancelled) return;
+          setCrmLeads(Array.isArray(leads) ? (leads as CrmAnalyticsLead[]) : []);
+        }
+      } catch (err) {
+        console.error('[ANALYTICS] Failed to load CRM analytics:', err);
+        // Keep last known data; do not wipe the dashboard on a transient error
+      } finally {
+        if (!cancelled && isInitial) setCrmLoading(false);
+      }
+    };
+
+    const scheduleNext = () => {
+      // Gentle cadence for the external CRM API to avoid rate limits
+      pollTimerRef.current = setTimeout(async () => {
+        if (cancelled) return;
+        await loadCrmLeads(false);
+        scheduleNext();
+      }, 20000);
+    };
+
+    loadCrmLeads(true).then(() => {
+      if (!cancelled) scheduleNext();
+    });
+
+    return () => {
+      cancelled = true;
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+    };
+  }, [user?.uid]);
+
+  // Derived analytics from Zoho leads (recomputed as leads/timeframe change)
+  const crmStatusData = useMemo(() => buildStatusData(crmLeads), [crmLeads]);
+  const crmTrendData = useMemo(() => buildTrendData(crmLeads, timeframe), [crmLeads, timeframe]);
+  const crmSourceData = useMemo(() => buildSourceData(crmLeads), [crmLeads]);
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -68,10 +231,22 @@ export function Analytics() {
     );
   }
 
-  // Calculate stats from chart data
-  const totalLeads = Array.isArray(chartData) ? chartData.reduce((sum, item) => sum + item.leads, 0) : 0;
-  const avgLeads = chartData.length > 0 ? Math.round(totalLeads / chartData.length) : 0;
-  const conversionRate = totalLeads > 0 ? (12.4 * totalLeads) / 1000 : 0;
+  // Active data sources: live Zoho when connected, otherwise existing fallbacks
+  const statusData = crmConnected ? crmStatusData : LEAD_STATUS_DATA;
+  const trendData = crmConnected ? crmTrendData : chartData;
+  const sourceData = crmConnected ? crmSourceData : PIE_DATA;
+  const trendLoading = crmConnected ? crmLoading : dataLoading;
+
+  // Calculate stats from the active data source
+  const totalLeads = crmConnected
+    ? crmLeads.length
+    : (Array.isArray(chartData) ? chartData.reduce((sum, item) => sum + item.leads, 0) : 0);
+  const windowDays = getWindowDays(timeframe);
+  const avgLeads = crmConnected
+    ? Math.round(totalLeads / windowDays)
+    : (chartData.length > 0 ? Math.round(totalLeads / chartData.length) : 0);
+  const wonLeads = crmLeads.filter((l) => (l.status || '').toLowerCase() === 'won').length;
+  const conversionRate = totalLeads > 0 ? Math.round((wonLeads / totalLeads) * 1000) / 10 : 0;
 
   return (
     <div className="space-y-5">
@@ -81,8 +256,16 @@ export function Analytics() {
             Analytics
           </h1>
           <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-            Deep dive into your AI's performance and lead generation.
+            {crmConnected
+              ? `Live insights from your ${(crmProvider || 'CRM').toUpperCase()} leads.`
+              : "Deep dive into your AI's performance and lead generation."}
           </p>
+          {crmConnected && (
+            <span className="inline-flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              Live from {(crmProvider || 'CRM').toUpperCase()}
+            </span>
+          )}
         </div>
         <select
           value={timeframe}
@@ -96,9 +279,9 @@ export function Analytics() {
 
       {/* Row 1: Lead Status Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-        {LEAD_STATUS_DATA.map((status) => {
-          const total = LEAD_STATUS_DATA.reduce((sum, s) => sum + s.count, 0);
-          const percentage = ((status.count / total) * 100).toFixed(1);
+        {statusData.map((status) => {
+          const total = statusData.reduce((sum, s) => sum + s.count, 0);
+          const percentage = total > 0 ? ((status.count / total) * 100).toFixed(1) : '0.0';
           return (
             <div
               key={status.name}
@@ -151,21 +334,21 @@ export function Analytics() {
             Lead Generation Trend
           </h2>
           <div className="h-64 sm:h-80">
-            {dataLoading ? (
+            {trendLoading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 mx-auto mb-2"></div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Loading chart...</p>
                 </div>
               </div>
-            ) : chartData.length === 0 ? (
+            ) : trendData.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <p className="text-gray-500 dark:text-gray-400">No data yet</p>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={chartData}
+                  data={trendData}
                   margin={{
                     top: 10,
                     right: 10,
@@ -225,21 +408,21 @@ export function Analytics() {
         {/* Conversation Sources */}
         <div className="bento-card flex flex-col">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-5">
-            Conversation Sources
+            Lead Sources
           </h2>
           <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-0">
             <div className="h-56 sm:h-64 w-full sm:w-1/2">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={PIE_DATA}
+                    data={sourceData}
                     cx="50%"
                     cy="50%"
                     innerRadius={50}
                     outerRadius={70}
                     paddingAngle={5}
                     dataKey="value">
-                    {PIE_DATA.map((entry, index) => (
+                    {sourceData.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
                         fill={COLORS[index % COLORS.length]}
@@ -259,12 +442,12 @@ export function Analytics() {
               </ResponsiveContainer>
             </div>
             <div className="space-y-3 sm:space-y-4 w-full sm:w-1/2 flex flex-col justify-center">
-              {PIE_DATA.map((item, index) => (
+              {sourceData.map((item, index) => (
                 <div key={item.name} className="flex items-center gap-3">
                   <div
                     className="w-3 h-3 rounded-full shadow-sm"
                     style={{
-                      backgroundColor: COLORS[index]
+                      backgroundColor: COLORS[index % COLORS.length]
                     }}>
                   </div>
                   <div>
@@ -307,25 +490,31 @@ export function Analytics() {
         </div>
         <div className="bento-card flex flex-col justify-between">
           <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">
-            CSAT Score
+            {crmConnected ? 'Won' : 'CSAT Score'}
           </div>
           <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            4.8
-            <span className="text-sm sm:text-base text-gray-400">/5.0</span>
+            {crmConnected ? (
+              wonLeads
+            ) : (
+              <>
+                4.8
+                <span className="text-sm sm:text-base text-gray-400">/5.0</span>
+              </>
+            )}
           </div>
           <div className="text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-navy-700 px-2.5 py-1 rounded-full self-start">
-            Based on ratings
+            {crmConnected ? 'Closed deals' : 'Based on ratings'}
           </div>
         </div>
         <div className="bento-card flex flex-col justify-between">
           <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">
-            Human Handoff Rate
+            {crmConnected ? 'Conversion Rate' : 'Human Handoff Rate'}
           </div>
           <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            8.2%
+            {crmConnected ? `${conversionRate}%` : '8.2%'}
           </div>
           <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-mint-100 dark:bg-emerald-900/20 px-2.5 py-1 rounded-full self-start">
-            Optimal range
+            {crmConnected ? 'Won / total leads' : 'Optimal range'}
           </div>
         </div>
       </div>
