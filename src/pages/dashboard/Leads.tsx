@@ -85,13 +85,20 @@ export function Leads() {
     }
     try {
       const status = await getConnectionStatus();
-      const connected = !!status?.connected && status?.status === 'connected';
-      crmConnectedRef.current = connected;
-      setCrmConnected(connected);
-      setCrmProvider(connected ? status.provider : null);
-      return connected;
+      // Treat ANY existing CRM connection (connected, error or pending) as the
+      // source. Only a truly 'disconnected'/absent connection falls back to
+      // the local database. This guarantees the inbox never shows local leads
+      // once a CRM has been linked.
+      const hasCrm =
+        !!status?.provider && status?.status !== 'disconnected';
+      crmConnectedRef.current = hasCrm;
+      setCrmConnected(hasCrm);
+      setCrmProvider(hasCrm ? status.provider : null);
+      console.log('[LEADS] CRM source check ->', { hasCrm, status: status?.status, provider: status?.provider });
+      return hasCrm;
     } catch (e) {
       // Could not determine right now -> keep last known source
+      console.warn('[LEADS] CRM source check failed, keeping last known:', crmConnectedRef.current);
       return crmConnectedRef.current;
     }
   };
