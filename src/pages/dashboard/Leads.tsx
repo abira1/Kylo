@@ -53,6 +53,8 @@ export function Leads() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [crmConnected, setCrmConnected] = useState(false);
   const [crmProvider, setCrmProvider] = useState<string | null>(null);
+  const [crmStatus, setCrmStatus] = useState<string | null>(null);
+  const [crmError, setCrmError] = useState<string | null>(null);
   const [detailLead, setDetailLead] = useState<any | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -94,6 +96,8 @@ export function Leads() {
       crmConnectedRef.current = hasCrm;
       setCrmConnected(hasCrm);
       setCrmProvider(hasCrm ? status.provider : null);
+      setCrmStatus(hasCrm ? status.status : null);
+      setCrmError(hasCrm && status.status === 'error' ? (status.errorMessage || 'Connection error') : null);
       console.log('[LEADS] CRM source check ->', { hasCrm, status: status?.status, provider: status?.provider });
       return hasCrm;
     } catch (e) {
@@ -198,19 +202,26 @@ export function Leads() {
       // Initial fetch
       fetchLeads(false);
 
-      // Auto-refresh every 5 seconds to catch new leads
-      refreshIntervalRef.current = setInterval(() => {
-        fetchLeads(true);
-      }, 5000);
+      // Auto-refresh on a self-scheduling timer. CRM sources poll gently
+      // (external API, rate-limited); the local DB can poll more frequently.
+      const scheduleNext = () => {
+        const delay = crmConnectedRef.current ? 20000 : 5000;
+        refreshIntervalRef.current = setTimeout(async () => {
+          if (cancelled) return;
+          await fetchLeads(true);
+          scheduleNext();
+        }, delay);
+      };
+      scheduleNext();
     };
 
     init();
 
-    // Cleanup interval on unmount
+    // Cleanup timer on unmount
     return () => {
       cancelled = true;
       if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
+        clearTimeout(refreshIntervalRef.current);
       }
     };
   }, [user?.uid]); // Re-fetch when user changes
@@ -372,6 +383,20 @@ export function Leads() {
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               Synced from {(crmProvider || 'CRM').toUpperCase()}
             </span>
+          )}
+          {crmConnected && crmStatus === 'error' && (
+            <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+              <p className="text-xs text-amber-800 dark:text-amber-300 flex-1">
+                {crmError && crmError.toLowerCase().includes('too many')
+                  ? 'Your CRM is temporarily rate-limited. Leads will reappear automatically within a minute — no action needed.'
+                  : `CRM connection needs attention: ${crmError}`}
+              </p>
+              <button
+                onClick={handleRefresh}
+                className="text-xs font-semibold text-amber-800 dark:text-amber-300 underline underline-offset-2 hover:opacity-80 self-start sm:self-auto">
+                Retry now
+              </button>
+            </div>
           )}
         </div>
         <div className="flex gap-2 w-full sm:w-auto">

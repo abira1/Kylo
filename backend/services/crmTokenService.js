@@ -17,6 +17,14 @@ const CrmFactory = require('../integrations/CrmFactory');
 // Get master key from environment
 const MASTER_KEY = process.env.CRM_TOKEN_MASTER_KEY;
 
+// Dedupe concurrent token refreshes per client. Without this, many requests /
+// browser tabs hitting an expired token at the same time each fire their own
+// refresh, which makes the CRM provider (Zoho) return "too many requests".
+const inFlightRefreshes = new Map(); // clientId -> Promise<string>
+// After a failed refresh, wait before trying again (avoids rate-limit storms).
+const refreshBackoffUntil = new Map(); // clientId -> timestamp(ms)
+const REFRESH_BACKOFF_MS = 60 * 1000; // 1 minute
+
 class CrmTokenService {
   /**
    * Initialize service and validate master key
@@ -120,32 +128,44 @@ class CrmTokenService {
    * @returns {Promise<string>} Valid access token
    */
   static async getValidAccessToken(clientId) {
-    try {
-      const connection = await this.loadConnection(clientId);
+    const connection = await this.loadConnection(clientId);
 
-      if (!connection) {
-        throw new Error('No CRM connection found. Please connect a CRM provider.');
-      }
+    if (!connection) {
+      throw new Error('No CRM connection found. Please connect a CRM provider.');
+    }
 
-      if (connection.status === 'error') {
-        throw new Error('CRM connection is in error state. Please reconnect.');
-      }
+    // If the cached access token is still valid, use it — regardless of the
+    // stored status. This lets a connection that was flagged 'error' due to a
+    // transient hiccup keep working without forcing a reconnect.
+    const now = Date.now();
+    const buffer = 5 * 60 * 1000; // 5 minute buffer
+    const expiresAt = connection.tokenExpiresAt
+      ? new Date(connection.tokenExpiresAt).getTime()
+      : 0;
 
-      // Check if token is still valid
-      const now = new Date();
-      const buffer = 5 * 60 * 1000; // 5 minute buffer
-      const expiresAt = new Date(connection.tokenExpiresAt);
+    if (connection.accessToken && expiresAt > now + buffer) {
+      return connection.accessToken;
+    }
 
-      if (expiresAt.getTime() > now.getTime() + buffer) {
-        // Token still valid
-        console.log('[CRM_TOKEN_SERVICE] Using existing access token');
+    // A refresh is needed. Respect a short backoff after a recent failure so we
+    // never hammer the provider's token endpoint (the cause of the rate limit).
+    const backoffUntil = refreshBackoffUntil.get(clientId) || 0;
+    if (now < backoffUntil) {
+      if (connection.accessToken) {
+        // Use the existing (soon-to-expire) token rather than refreshing now
         return connection.accessToken;
       }
+      throw new Error('CRM token temporarily unavailable due to rate limiting. Please try again shortly.');
+    }
 
-      // Token expired, need to refresh
+    // Collapse concurrent refreshes into a single in-flight request
+    if (inFlightRefreshes.has(clientId)) {
+      return inFlightRefreshes.get(clientId);
+    }
+
+    const refreshPromise = (async () => {
       console.log('[CRM_TOKEN_SERVICE] Access token expired, refreshing...');
 
-      // Create adapter to refresh token
       const adapter = CrmFactory.createAdapter(connection.provider, clientId, {
         accessToken: connection.accessToken,
         refreshToken: connection.refreshToken,
@@ -153,34 +173,43 @@ class CrmTokenService {
         tokenExpiresAt: connection.tokenExpiresAt,
       });
 
-      const newAccessToken = await adapter.refreshAccessToken();
-
-      // Update stored connection with new token
-      await db.collection('connections').doc(clientId).update({
-        accessToken: newAccessToken,
-        tokenExpiresAt: adapter.config.tokenExpiresAt,
-        updatedAt: new Date(),
-        status: 'connected',
-        errorMessage: null,
-      });
-
-      console.log('[CRM_TOKEN_SERVICE] Token refreshed successfully');
-      return newAccessToken;
-    } catch (error) {
-      console.error('[CRM_TOKEN_SERVICE] Failed to get valid access token:', error.message);
-
-      // Mark connection as error
       try {
+        const newAccessToken = await adapter.refreshAccessToken();
+
+        await db.collection('connections').doc(clientId).update({
+          accessToken: newAccessToken,
+          tokenExpiresAt: adapter.config.tokenExpiresAt,
+          updatedAt: new Date(),
+          status: 'connected', // self-heal: a successful refresh clears 'error'
+          errorMessage: null,
+        });
+
+        refreshBackoffUntil.delete(clientId);
+        console.log('[CRM_TOKEN_SERVICE] Token refreshed successfully');
+        return newAccessToken;
+      } catch (error) {
+        console.error('[CRM_TOKEN_SERVICE] Token refresh failed:', error.message);
+
+        // Back off before the next attempt to avoid rate-limit storms
+        refreshBackoffUntil.set(clientId, Date.now() + REFRESH_BACKOFF_MS);
+
         await db.collection('connections').doc(clientId).update({
           status: 'error',
           errorMessage: error.message,
           updatedAt: new Date(),
+        }).catch((updateError) => {
+          console.error('[CRM_TOKEN_SERVICE] Failed to update error status:', updateError.message);
         });
-      } catch (updateError) {
-        console.error('[CRM_TOKEN_SERVICE] Failed to update error status:', updateError.message);
-      }
 
-      throw error;
+        throw error;
+      }
+    })();
+
+    inFlightRefreshes.set(clientId, refreshPromise);
+    try {
+      return await refreshPromise;
+    } finally {
+      inFlightRefreshes.delete(clientId);
     }
   }
 
