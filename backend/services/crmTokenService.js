@@ -23,7 +23,8 @@ const MASTER_KEY = process.env.CRM_TOKEN_MASTER_KEY;
 const inFlightRefreshes = new Map(); // clientId -> Promise<string>
 // After a failed refresh, wait before trying again (avoids rate-limit storms).
 const refreshBackoffUntil = new Map(); // clientId -> timestamp(ms)
-const REFRESH_BACKOFF_MS = 60 * 1000; // 1 minute
+const REFRESH_BACKOFF_MS = 5 * 60 * 1000; // 5 minutes \u2014 long enough for Zoho's
+// "too many requests" cooldown to clear before we attempt another refresh.
 
 class CrmTokenService {
   /**

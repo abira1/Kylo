@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users,
@@ -21,10 +21,24 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { useRealtimeData } from '../../hooks/useData';
 import * as DataService from '../../services/dataService';
+import { getConnectionStatus, fetchLeads as fetchCrmLeads } from '../../services/crmService';
+
+interface HomeCrmLead {
+  id: string;
+  name?: string;
+  businessType?: string;
+  status?: string;
+}
 
 export function Home() {
   const { user, loading: authLoading } = useAuth();
   const [timeRange, setTimeRange] = useState('7days');
+
+  // ---- Realtime CRM (Zoho) state ----
+  const [crmConnected, setCrmConnected] = useState(false);
+  const [crmProvider, setCrmProvider] = useState<string | null>(null);
+  const [crmLeads, setCrmLeads] = useState<HomeCrmLead[]>([]);
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Subscribe to chart data from Firebase
   const { data: chartData = [] } = useRealtimeData(
@@ -38,6 +52,47 @@ export function Home() {
     []
   );
 
+  // Poll Zoho leads in realtime when a CRM is connected
+  useEffect(() => {
+    if (!user?.uid) return;
+    let cancelled = false;
+
+    const loadCrmLeads = async () => {
+      try {
+        const status = await getConnectionStatus();
+        const hasCrm = !!status?.provider && status?.status !== 'disconnected';
+        if (cancelled) return;
+        setCrmConnected(hasCrm);
+        setCrmProvider(hasCrm ? status.provider : null);
+        if (hasCrm) {
+          const leads = await fetchCrmLeads(1, 200);
+          if (cancelled) return;
+          setCrmLeads(Array.isArray(leads) ? (leads as HomeCrmLead[]) : []);
+        }
+      } catch (err) {
+        console.error('[HOME] Failed to load CRM leads:', err);
+        // Keep last known data on transient errors
+      }
+    };
+
+    const scheduleNext = () => {
+      pollTimerRef.current = setTimeout(async () => {
+        if (cancelled) return;
+        await loadCrmLeads();
+        scheduleNext();
+      }, 20000);
+    };
+
+    loadCrmLeads().then(() => {
+      if (!cancelled) scheduleNext();
+    });
+
+    return () => {
+      cancelled = true;
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+    };
+  }, [user?.uid]);
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -50,12 +105,33 @@ export function Home() {
   }
 
   const displayName = user?.displayName || 'User';
-  const totalLeads = leadsData.length;
-  const qualifiedLeads = leadsData.filter((l) => l.status === 'Qualified').length;
+
+  // Stat metrics: live Zoho data when connected, otherwise Firebase data
+  const totalLeads = crmConnected ? crmLeads.length : leadsData.length;
+  const qualifiedLeads = crmConnected
+    ? crmLeads.filter((l) => (l.status || '').toLowerCase() === 'qualified').length
+    : leadsData.filter((l) => l.status === 'Qualified').length;
+  const newLeads = crmLeads.filter((l) => (l.status || '').toLowerCase() === 'new').length;
+  const wonLeads = crmLeads.filter((l) => (l.status || '').toLowerCase() === 'won').length;
   const avgLeadScore =
     leadsData.length > 0
       ? Math.round(leadsData.reduce((sum, l) => sum + l.score, 0) / leadsData.length)
       : 0;
+
+  // Normalized list for the "Recent Leads" panel
+  const recentLeads = crmConnected
+    ? crmLeads.slice(0, 4).map((l) => ({
+        id: l.id,
+        name: l.name || 'Unknown',
+        subtitle: l.businessType || '—',
+        badge: (l.status || 'new').charAt(0).toUpperCase() + (l.status || 'new').slice(1),
+      }))
+    : leadsData.slice(0, 4).map((l) => ({
+        id: l.id,
+        name: l.name,
+        subtitle: l.company,
+        badge: `Score: ${l.score}`,
+      }));
 
   return (
     <div className="space-y-5">
@@ -65,15 +141,14 @@ export function Home() {
             Welcome back, {displayName}
           </h1>
           <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-            Here's what's happening with your AI assistants today.
+            {crmConnected
+              ? `Live lead insights synced from your ${(crmProvider || 'CRM').toUpperCase()}.`
+              : "Here's what's happening with your AI assistants today."}
           </p>
         </div>
         <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
           <button className="btn-secondary text-xs sm:text-sm flex-1 sm:flex-none">
             Download Report
-          </button>
-          <button className="btn-primary text-xs sm:text-sm flex-1 sm:flex-none">
-            New Chatbot
           </button>
         </div>
       </div>
@@ -99,8 +174,8 @@ export function Home() {
         />
 
         <KPICard
-          title="Lead Quality Score"
-          value={`${avgLeadScore}`}
+          title={crmConnected ? 'New Leads' : 'Lead Quality Score'}
+          value={crmConnected ? newLeads.toString() : `${avgLeadScore}`}
           trend="+2.1%"
           isPositive={true}
           icon={Zap}
@@ -108,11 +183,11 @@ export function Home() {
         />
 
         <KPICard
-          title="Conversations"
-          value="0"
+          title={crmConnected ? 'Won' : 'Conversations'}
+          value={crmConnected ? wonLeads.toString() : '0'}
           trend="+0%"
           isPositive={true}
-          icon={Clock}
+          icon={crmConnected ? TrendingUp : Clock}
           color="emerald"
         />
       </div>
@@ -244,32 +319,32 @@ export function Home() {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto pr-2 space-y-3">
-            {leadsData.slice(0, 4).map((lead) => (
+            {recentLeads.map((lead) => (
               <div
                 key={lead.id}
                 className="flex items-center justify-between p-2.5 sm:p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-navy-800/50 transition-colors border border-transparent hover:border-gray-100 dark:hover:border-navy-700"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-emerald-400 to-turquoise-500 dark:from-cyan-500 dark:to-emerald-500 flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-sm">
-                    {lead.name.charAt(0)}
+                    {(lead.name || '?').charAt(0).toUpperCase()}
                   </div>
                   <div>
                     <div className="font-medium text-gray-900 dark:text-white text-xs sm:text-sm">
                       {lead.name}
                     </div>
                     <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
-                      {lead.company}
+                      {lead.subtitle}
                     </div>
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="inline-flex items-center px-2 py-1 rounded-md bg-mint-50 dark:bg-cyan-900/30 text-emerald-700 dark:text-cyan-400 text-[10px] sm:text-xs font-medium">
-                    Score: {lead.score}
+                    {lead.badge}
                   </div>
                 </div>
               </div>
             ))}
-            {leadsData.length === 0 && (
+            {recentLeads.length === 0 && (
               <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
                 No leads yet
               </p>
