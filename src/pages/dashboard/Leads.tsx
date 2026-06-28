@@ -8,13 +8,16 @@ import {
   Phone,
   Tag,
   Loader,
+  ArrowLeft,
   RefreshCw } from
 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '../../hooks/useAuth';
+import { getConnectionStatus, fetchLeads as fetchCrmLeads, fetchLeadDetail } from '../../services/crmService';
 
 interface Lead {
   id: string;
+  external_id?: string;
   name: string;
   email: string;
   phone?: string;
@@ -48,9 +51,30 @@ export function Leads() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [crmConnected, setCrmConnected] = useState(false);
+  const [crmProvider, setCrmProvider] = useState<string | null>(null);
+  const [detailLead, setDetailLead] = useState<any | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  // Tracks CRM connection for the auto-refresh interval closure (avoids stale state)
+  const crmConnectedRef = useRef(false);
 
   const demoClientId = 'gxx8SK6WQHfd9xZ2HOLUW3PDFGE3';
+
+  // Map a CRM (e.g. Zoho) normalized lead onto the local Lead shape
+  const mapCrmLead = (l: any): Lead => ({
+    id: l.id || l.external_id,
+    external_id: l.external_id || l.id,
+    name: l.name || 'No name',
+    email: l.email || '',
+    phone: l.phone,
+    country: l.country,
+    status: l.status || 'new',
+    createdAt: l.lastModified ? new Date(l.lastModified) : new Date(),
+    source: l.source || 'crm',
+    extractedData: l.custom_fields,
+  });
 
   // Function to fetch leads
   const fetchLeads = async (isRefresh = false) => {
@@ -61,7 +85,23 @@ export function Leads() {
       } else {
         setRefreshing(true);
       }
-      
+
+      // When a CRM (e.g. Zoho) is connected, the inbox is sourced ENTIRELY
+      // from the CRM and the local database is ignored.
+      if (crmConnectedRef.current) {
+        try {
+          const crmLeads = await fetchCrmLeads(1, 100);
+          console.log('[LEADS] Fetched', crmLeads.length, 'leads from CRM');
+          setLeads(crmLeads.map(mapCrmLead));
+        } catch (crmError) {
+          console.error('[LEADS] CRM fetch failed:', crmError);
+          if (!isRefresh) {
+            setLeads([]);
+          }
+        }
+        return;
+      }
+
       // Use user's UID, fallback to demoClientId
       const clientId = user?.uid || demoClientId;
       console.log('[LEADS] Fetching for clientId:', clientId, '(user.uid:', user?.uid, ')');
@@ -115,22 +155,44 @@ export function Leads() {
 
   // Fetch leads on mount and when user changes
   useEffect(() => {
-    // Wait for auth to finish loading before fetching
-    if (!user && !user?.uid) {
-      console.log('[LEADS] User not authenticated yet, waiting...');
-      // Still set interval even if not logged in yet (will use demoClientId)
-    }
-    
-    // Initial fetch
-    fetchLeads(false);
+    let cancelled = false;
 
-    // Auto-refresh every 5 seconds to catch new leads
-    refreshIntervalRef.current = setInterval(() => {
-      fetchLeads(true);
-    }, 5000);
+    const init = async () => {
+      // First determine whether a CRM (e.g. Zoho) is connected. If so, the
+      // inbox shows ONLY CRM leads and ignores the local database.
+      try {
+        const status = await getConnectionStatus();
+        const connected = !!status.connected && status.status === 'connected';
+        if (!cancelled) {
+          crmConnectedRef.current = connected;
+          setCrmConnected(connected);
+          setCrmProvider(connected ? status.provider : null);
+        }
+      } catch (e) {
+        // No connection / not authenticated yet -> fall back to local DB
+        if (!cancelled) {
+          crmConnectedRef.current = false;
+          setCrmConnected(false);
+          setCrmProvider(null);
+        }
+      }
+
+      if (cancelled) return;
+
+      // Initial fetch
+      fetchLeads(false);
+
+      // Auto-refresh every 5 seconds to catch new leads
+      refreshIntervalRef.current = setInterval(() => {
+        fetchLeads(true);
+      }, 5000);
+    };
+
+    init();
 
     // Cleanup interval on unmount
     return () => {
+      cancelled = true;
       if (refreshIntervalRef.current) {
         clearInterval(refreshIntervalRef.current);
       }
@@ -140,6 +202,41 @@ export function Leads() {
   // Manual refresh handler
   const handleRefresh = async () => {
     await fetchLeads(true);
+  };
+
+  // Open a lead. For CRM-connected inboxes this fetches the FULL record
+  // (all fields) from the CRM and opens a full-page detail view.
+  const openLeadDetail = async (lead: Lead) => {
+    if (crmConnectedRef.current && lead.external_id) {
+      setDetailLead({ ...lead, raw: null });
+      setDetailLoading(true);
+      setDetailError(null);
+      try {
+        const full = await fetchLeadDetail(lead.external_id);
+        setDetailLead(full);
+      } catch (err: any) {
+        console.error('[LEADS] Failed to load lead detail:', err);
+        setDetailError(err?.message || 'Failed to load lead details');
+      } finally {
+        setDetailLoading(false);
+      }
+    } else {
+      // Local (non-CRM) lead -> existing side panel
+      setSelectedLead(lead);
+    }
+  };
+
+  // Pretty-print a Zoho field label (Lead_Status -> Lead Status)
+  const formatLabel = (key: string) =>
+    key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+  // Render any Zoho field value as readable text
+  const renderValue = (v: any): string => {
+    if (v === null || v === undefined || v === '') return '\u2014';
+    if (Array.isArray(v)) return v.map(renderValue).filter(Boolean).join(', ') || '\u2014';
+    if (typeof v === 'object') return v.name || v.full_name || v.display_value || JSON.stringify(v);
+    if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+    return String(v);
   };
 
   // Filter leads - apply search/status ONLY if user explicitly types/selects
@@ -245,13 +342,21 @@ export function Leads() {
             Lead Inbox
           </h1>
           <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 font-medium">
-            Manage and qualify leads captured by your AI. ({filteredLeads.length} of {leads.length} leads)
+            {crmConnected
+              ? `Showing leads from your connected CRM. (${filteredLeads.length} of ${leads.length} leads)`
+              : `Manage and qualify leads captured by your AI. (${filteredLeads.length} of ${leads.length} leads)`}
             {(searchTerm || statusFilter !== 'all') && (
               <span className="text-xs ml-2 text-orange-600 dark:text-orange-400">
                 🔍 Filtered
               </span>
             )}
           </p>
+          {crmConnected && (
+            <span className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              Synced from {(crmProvider || 'CRM').toUpperCase()}
+            </span>
+          )}
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <button 
@@ -385,7 +490,7 @@ export function Leads() {
                   return (
                     <tr
                       key={lead.id}
-                      onClick={() => setSelectedLead(lead)}
+                      onClick={() => openLeadDetail(lead)}
                       className="hover:bg-mint-50/50 dark:hover:bg-navy-700/50 cursor-pointer transition-colors">
                       
                       <td className="px-4 py-3">
@@ -517,6 +622,104 @@ export function Leads() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full-page CRM Lead Detail View (all fields from Zoho) */}
+      {detailLead && (
+        <div className="fixed inset-0 z-50 bg-gray-50 dark:bg-navy-900 overflow-y-auto">
+          {/* Sticky header */}
+          <div className="sticky top-0 z-10 bg-white/95 dark:bg-navy-800/95 backdrop-blur border-b border-gray-100 dark:border-navy-700">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-3">
+              <button
+                onClick={() => { setDetailLead(null); setDetailError(null); }}
+                className="p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors text-gray-600 dark:text-gray-300"
+                title="Back to inbox">
+                <ArrowLeft size={20} />
+              </button>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-white font-bold shadow-sm shrink-0">
+                {(detailLead.name || 'U').charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">
+                  {detailLead.name || 'No name'}
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {(crmProvider || 'CRM').toUpperCase()} · ID {detailLead.external_id || detailLead.id}
+                </p>
+              </div>
+              <span className={`hidden sm:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${getStatusColor(detailLead.status || 'new')}`}>
+                {detailLead.status || 'new'}
+              </span>
+            </div>
+          </div>
+
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+            {/* Quick summary cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="bg-white dark:bg-navy-800 rounded-xl p-4 border border-gray-100 dark:border-navy-700">
+                <div className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                  <Mail size={12} className="text-cyan-500" /> Email
+                </div>
+                <p className="text-sm text-gray-900 dark:text-white break-words">{detailLead.email || '\u2014'}</p>
+              </div>
+              <div className="bg-white dark:bg-navy-800 rounded-xl p-4 border border-gray-100 dark:border-navy-700">
+                <div className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                  <Phone size={12} className="text-cyan-500" /> Phone
+                </div>
+                <p className="text-sm text-gray-900 dark:text-white break-words">{detailLead.phone || '\u2014'}</p>
+              </div>
+              <div className="bg-white dark:bg-navy-800 rounded-xl p-4 border border-gray-100 dark:border-navy-700">
+                <div className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                  <Tag size={12} className="text-cyan-500" /> Status
+                </div>
+                <p className="text-sm text-gray-900 dark:text-white break-words">{detailLead.status || '\u2014'}</p>
+              </div>
+            </div>
+
+            {/* Loading / error states for the full record */}
+            {detailLoading && (
+              <div className="flex items-center justify-center py-10">
+                <div className="flex flex-col items-center gap-3">
+                  <Loader className="animate-spin text-cyan-500" size={28} />
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Loading all details from {(crmProvider || 'CRM').toUpperCase()}…</p>
+                </div>
+              </div>
+            )}
+
+            {detailError && !detailLoading && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 text-sm text-red-700 dark:text-red-400">
+                {detailError}
+              </div>
+            )}
+
+            {/* ALL fields from Zoho */}
+            {!detailLoading && detailLead.raw && (
+              <div className="bg-white dark:bg-navy-800 rounded-2xl border border-gray-100 dark:border-navy-700 overflow-hidden">
+                <div className="px-4 sm:px-6 py-3 border-b border-gray-100 dark:border-navy-700 bg-gray-50/50 dark:bg-navy-900/40">
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+                    All Information ({Object.keys(detailLead.raw).length} fields)
+                  </h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 divide-gray-50 dark:divide-navy-700/50">
+                  {Object.entries(detailLead.raw)
+                    .filter(([, v]) => v !== null && v !== undefined && v !== '')
+                    .map(([key, value], idx) => (
+                      <div
+                        key={key}
+                        className={`px-4 sm:px-6 py-3 ${idx % 2 === 0 ? 'sm:border-r border-gray-50 dark:border-navy-700/50' : ''} border-b border-gray-50 dark:border-navy-700/50`}>
+                        <div className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">
+                          {formatLabel(key)}
+                        </div>
+                        <div className="text-sm text-gray-900 dark:text-white break-words whitespace-pre-wrap">
+                          {renderValue(value)}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

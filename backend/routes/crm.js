@@ -291,6 +291,51 @@ router.post('/leads', async (req, res) => {
 });
 
 /**
+ * POST /api/crm/leads/detail
+ * Fetch a SINGLE lead with ALL fields from the connected CRM
+ */
+router.post('/leads/detail', async (req, res) => {
+  try {
+    const clientId = req.clientId;
+    const { externalId } = req.body;
+
+    if (!externalId) {
+      return res.status(400).json({ error: 'externalId is required' });
+    }
+
+    console.log(`[CRM_ROUTES] Fetching lead detail ${externalId} for ${clientId}`);
+
+    const connection = await CrmTokenService.loadConnection(clientId);
+    if (!connection) {
+      return res.status(400).json({ error: 'No CRM connection found' });
+    }
+
+    if (connection.status !== 'connected') {
+      return res.status(400).json({ error: 'CRM connection is not active' });
+    }
+
+    const accessToken = await CrmTokenService.getValidAccessToken(clientId);
+
+    const adapter = CrmFactory.createAdapter(connection.provider, clientId, {
+      accessToken,
+      refreshToken: connection.refreshToken,
+      region: connection.region,
+      tokenExpiresAt: connection.tokenExpiresAt,
+    });
+
+    const lead = await adapter.getLead(externalId);
+    if (!lead) {
+      return res.status(404).json({ error: 'Lead not found' });
+    }
+
+    res.json({ success: true, lead, provider: connection.provider });
+  } catch (error) {
+    console.error('[CRM_ROUTES] Failed to fetch lead detail:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * POST /api/crm/leads/create
  * Create a new lead in the connected CRM
  */

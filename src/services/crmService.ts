@@ -175,6 +175,37 @@ export async function fetchLeads(page: number = 1, limit: number = 50): Promise<
   }
 }
 
+export interface CrmLeadDetail extends NormalizedLead {
+  raw?: Record<string, unknown>;
+}
+
+/**
+ * Fetch a single lead with ALL fields from the connected CRM
+ */
+export async function fetchLeadDetail(externalId: string): Promise<CrmLeadDetail> {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
+
+  const clientId = user.uid;
+  const response = await fetch(`${API_BASE}/leads/detail`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ clientId, externalId }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error((error as any).error || `Failed to fetch lead detail: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.lead;
+}
+
 /**
  * Create a new lead in the connected CRM
  */

@@ -169,6 +169,31 @@ class ZohoCrmAdapter extends CrmAdapter {
   }
 
   /**
+   * Retrieve a SINGLE lead with ALL fields from Zoho.
+   * Calling GET /Leads/{id} without a `fields` filter returns every
+   * populated field for the record, which the UI uses for the full detail view.
+   */
+  async getLead(externalId) {
+    try {
+      console.log('[ZOHO_ADAPTER] Fetching full lead detail:', externalId);
+
+      const response = await this.request('GET', `/Leads/${externalId}`);
+      const record = (response.data && response.data[0]) || null;
+
+      if (!record) {
+        return null;
+      }
+
+      // Normalized summary + the complete raw Zoho record (all fields)
+      const normalized = this.normalizeLead(record);
+      return { ...normalized, raw: record };
+    } catch (error) {
+      console.error('[ZOHO_ADAPTER] getLead failed:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Create a new lead in Zoho
    */
   async createLead(lead) {
