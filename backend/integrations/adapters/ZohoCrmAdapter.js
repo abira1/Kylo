@@ -30,8 +30,10 @@ class ZohoCrmAdapter extends CrmAdapter {
     this.region = region;
     
     // Map region to Zoho domain
+    // NOTE: the CRM API is served from zohoapis.<region> (e.g. www.zohoapis.com),
+    // NOT www.zoho.<region> (the marketing site, which returns 404).
     this.accountsDomain = `accounts.zoho${region}`;
-    this.apiDomain = `www.zoho${region}`;
+    this.apiDomain = `www.zohoapis${region}`;
     
     // Zoho API endpoints
     this.authUrl = `https://${this.accountsDomain}/oauth/v2/token`;
