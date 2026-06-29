@@ -9,7 +9,7 @@ export function Settings() {
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== 'undefined') {
       const tab = new URLSearchParams(window.location.search).get('tab');
-      const valid = ['account', 'team', 'security', 'integrations', 'api', 'notifications'];
+      const valid = ['account', 'team', 'security', 'integrations', 'notifications'];
       if (tab && valid.includes(tab)) {
         return tab;
       }
@@ -36,11 +36,6 @@ export function Settings() {
     id: 'integrations',
     label: 'Integrations',
     icon: Zap
-  },
-  {
-    id: 'api',
-    label: 'API Keys',
-    icon: Key
   },
   {
     id: 'notifications',
