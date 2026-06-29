@@ -209,8 +209,7 @@ const CreditCardForm = ({
 
       <style>{`
         .ccp { width: 100%; display: flex; justify-content: center; color: #0d0c22; }
-        .ccp .wrap { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
-        @media (max-width: 920px) { .ccp .wrap { grid-template-columns: 1fr; } }
+        .ccp .wrap { width: 100%; max-width: 440px; display: grid; grid-template-columns: 1fr; gap: 20px; align-items: start; }
         .ccp * { box-sizing: border-box; }
         .ccp #highlight { position: absolute; border: 1px solid #fff; border-radius: 12px; z-index: 1; width: 0; height: 0; top: 0; left: 0; box-shadow: 0 0 5px #fff; transition: .3s; }
         .ccp #highlight.highlight__number { width: 346px; height: 40px; top: 92px; left: 18px; }
@@ -238,9 +237,9 @@ const CreditCardForm = ({
         .ccp .card__footer { display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 1; }
         .ccp .card__holder { text-transform: uppercase; }
         .ccp .card__section__title { font-size: 14px; font-weight: 600; text-transform: uppercase; }
-        .ccp .form { border-radius: 12px; background: #fff; width: 100%; margin: 0 auto; padding: 24px; border: 1px solid #f1f1f1; box-shadow: 0 0 40px rgba(50,55,63,.16); display: grid; gap: 12px; color: #0d0c22; }
-        .ccp label { display: block; margin: 6px 0 4px; color: #0d0c22; font-weight: 500; }
-        .ccp input, .ccp select { height: 52px; display: block; width: 100%; border: 1px solid #6b7280; padding: 18px 20px; transition: outline .2s ease, box-shadow .2s ease; border-radius: 12px; outline: none; background-color: #fff; color: #0d0c22; font-size: 16px; }
+        .ccp .form { border-radius: 12px; background: #fff; width: 100%; margin: 0 auto; padding: 18px; border: 1px solid #f1f1f1; box-shadow: 0 0 40px rgba(50,55,63,.16); display: grid; gap: 8px; color: #0d0c22; }
+        .ccp label { display: block; margin: 4px 0 3px; color: #0d0c22; font-weight: 500; font-size: 13px; }
+        .ccp input, .ccp select { height: 44px; display: block; width: 100%; border: 1px solid #6b7280; padding: 12px 14px; transition: outline .2s ease, box-shadow .2s ease; border-radius: 10px; outline: none; background-color: #fff; color: #0d0c22; font-size: 15px; }
         .ccp input:focus, .ccp select:focus { border: 1px solid #000; outline: 4px solid rgba(0,0,0,.1); }
         .ccp select { padding: 0 20px; }
         .ccp .filed__group { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }

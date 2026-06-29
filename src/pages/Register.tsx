@@ -116,7 +116,7 @@ export function Register() {
 
   return (
     <div className="min-h-screen flex bg-[#f8fafc] dark:bg-navy-950">
-      <div className={`w-full ${step === 3 ? 'max-w-5xl' : 'max-w-2xl'} mx-auto flex flex-col justify-center px-4 py-8 sm:px-6 sm:py-12 transition-all`}>
+      <div className="w-full max-w-2xl mx-auto flex flex-col justify-center px-4 py-8 sm:px-6 sm:py-12 transition-all">
         <Link
           to="/"
           className="flex items-center justify-center gap-3 mb-6 sm:mb-10">
@@ -345,57 +345,41 @@ export function Register() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               onSubmit={handlePayment}>
-              <div className="text-center mb-6 sm:mb-8">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white mb-2 sm:mb-3">
+              <div className="text-center mb-5 sm:mb-6">
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white mb-1.5 sm:mb-2">
                   Complete Payment
                 </h1>
-                <p className="text-sm sm:text-lg text-gray-600 dark:text-gray-400 font-medium">
-                  Enter your payment details to activate {pkg?.name} plan
+                <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 font-medium">
+                  Activate your {pkg?.name} plan
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8 items-start">
+              <div className="space-y-5">
                 {/* Order Summary */}
-                <div className="lg:col-span-2 p-5 sm:p-6 bg-gradient-to-br from-mint-50 to-white dark:from-navy-900/60 dark:to-navy-900/30 rounded-2xl border border-gray-100 dark:border-navy-700">
-                  <div className="flex justify-between items-start mb-4">
+                <div className="p-4 sm:p-5 bg-gradient-to-br from-mint-50 to-white dark:from-navy-900/60 dark:to-navy-900/30 rounded-2xl border border-gray-100 dark:border-navy-700">
+                  <div className="flex justify-between items-center">
                     <div>
-                      <div className="font-bold text-lg text-gray-900 dark:text-white">{pkg?.name} Plan</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">Billed monthly · cancel anytime</div>
+                      <div className="font-bold text-base text-gray-900 dark:text-white">{pkg?.name} Plan</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Billed monthly · cancel anytime</div>
                     </div>
-                    <span className="text-emerald-700 dark:text-cyan-400 text-xs font-bold bg-mint-100 dark:bg-cyan-900/20 px-3 py-1 rounded-full uppercase tracking-wide">Secure</span>
-                  </div>
-                  <div className="space-y-1.5 mb-4">
-                    {pkg?.features?.slice(0, 4).map((feature, idx) => (
-                      <div key={idx} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 font-medium">
-                        <CheckCircle2 size={15} className="text-emerald-500 dark:text-cyan-400 flex-shrink-0" /> {feature}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="border-t border-gray-200 dark:border-navy-700 pt-4 flex justify-between items-center">
-                    <span className="font-bold text-gray-900 dark:text-white">Total due today</span>
-                    <span className="text-2xl font-extrabold text-emerald-600 dark:text-cyan-400">${pkg?.price}.00</span>
+                    <span className="text-xl font-extrabold text-emerald-600 dark:text-cyan-400">${pkg?.price}.00</span>
                   </div>
                 </div>
 
                 {/* Payment Form */}
-                <div className="lg:col-span-3 space-y-4 sm:space-y-5">
-                  <CreditCardForm
-                    showSubmit={false}
-                    maskMiddle
-                    defaultHolder={formData.fullName.toUpperCase()}
-                    onChange={handleCardChange}
-                  />
-                  <div className="flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                    <Lock size={13} /> 256-bit SSL encrypted · we never store full card numbers
-                  </div>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
-                    Use 4242 4242 4242 4242 for testing
-                  </p>
+                <CreditCardForm
+                  showSubmit={false}
+                  maskMiddle
+                  defaultHolder={formData.fullName.toUpperCase()}
+                  onChange={handleCardChange}
+                />
+                <div className="flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                  <Lock size={13} /> 256-bit SSL encrypted · test with 4242 4242 4242 4242
                 </div>
               </div>
 
               {error && (
-                <div className="mt-5 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 text-sm text-center font-medium">
+                <div className="mt-4 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 text-sm text-center font-medium">
                   {error}
                 </div>
               )}
