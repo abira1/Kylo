@@ -508,6 +508,60 @@ export const saveClientProfile = async (
 };
 
 /**
+ * TEAM / MODERATORS
+ */
+
+export type TeamRole = 'Admin' | 'Moderator' | 'Viewer';
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role: TeamRole;
+  status: 'active' | 'invited' | 'suspended';
+  invitedAt: string;
+}
+
+export const subscribeToTeamMembers = (
+  clientId: string,
+  callback: (members: TeamMember[]) => void
+): (() => void) => {
+  return subscribeToData(
+    `clients/${clientId}/team`,
+    (data) => {
+      if (data) {
+        const obj = data as Record<string, TeamMember>;
+        callback(Object.entries(obj).map(([id, m]) => ({ ...m, id: m.id || id })));
+      } else {
+        callback([]);
+      }
+    }
+  );
+};
+
+export const addTeamMember = async (
+  clientId: string,
+  member: Omit<TeamMember, 'id'>
+): Promise<string> => {
+  return addDocument(`clients/${clientId}/team`, member);
+};
+
+export const updateTeamMember = async (
+  clientId: string,
+  memberId: string,
+  updates: Partial<TeamMember>
+): Promise<void> => {
+  await updateData(`clients/${clientId}/team/${memberId}`, updates);
+};
+
+export const removeTeamMember = async (
+  clientId: string,
+  memberId: string
+): Promise<void> => {
+  await deleteData(`clients/${clientId}/team/${memberId}`);
+};
+
+/**
  * SUMMARY/DASHBOARD DATA
  */
 
