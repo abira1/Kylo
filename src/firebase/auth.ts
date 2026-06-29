@@ -11,6 +11,7 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
   updatePassword,
+  fetchSignInMethodsForEmail,
 } from 'firebase/auth';
 import { auth } from './config';
 
@@ -30,6 +31,19 @@ export interface AuthUser {
  */
 const isAdminUser = (email: string | null): boolean => {
   return email === ADMIN_EMAIL;
+};
+
+/**
+ * Check if an email is already registered
+ */
+export const checkEmailExists = async (email: string): Promise<boolean> => {
+  try {
+    const methods = await fetchSignInMethodsForEmail(auth, email);
+    return methods.length > 0;
+  } catch (error) {
+    console.error('Email check error:', error);
+    return false;
+  }
 };
 
 /**

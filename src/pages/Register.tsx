@@ -17,7 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { registerUser } from '../firebase/auth';
+import { registerUser, checkEmailExists } from '../firebase/auth';
 import { processPayment, PACKAGES, Package } from '../services/paymentService';
 import { CreditCardForm, type CardState, type CardValidity } from '../components/ui/credit-card-form';
 
@@ -37,6 +37,8 @@ export function Register() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+  const [checkingNext, setCheckingNext] = useState(false);
   
   const [selectedPackage, setSelectedPackage] = useState('professional');
   
@@ -52,7 +54,21 @@ export function Register() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === 'email') setEmailStatus('idle');
     setError('');
+  };
+
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const handleEmailBlur = async () => {
+    const email = formData.email.trim();
+    if (!email || !isValidEmail(email)) {
+      setEmailStatus('idle');
+      return;
+    }
+    setEmailStatus('checking');
+    const exists = await checkEmailExists(email);
+    setEmailStatus(exists ? 'taken' : 'available');
   };
 
   const handleCardChange = (state: CardState, validity: CardValidity) => {
@@ -66,10 +82,14 @@ export function Register() {
     setError('');
   };
 
-  const handleNext = (e: React.FormEvent) => {
+  const handleNext = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.fullName || !formData.company || !formData.email || !formData.password) {
       setError('Please fill in all fields');
+      return;
+    }
+    if (!isValidEmail(formData.email)) {
+      setError('Please enter a valid email address');
       return;
     }
     if (formData.password.length < 8) {
@@ -84,6 +104,16 @@ export function Register() {
       setError('Passwords do not match');
       return;
     }
+    // Final email-availability check before advancing
+    setCheckingNext(true);
+    const exists = await checkEmailExists(formData.email.trim());
+    setCheckingNext(false);
+    if (exists) {
+      setEmailStatus('taken');
+      setError('This email is already registered. Please try another email or sign in.');
+      return;
+    }
+    setEmailStatus('available');
     setStep(2);
   };
 
@@ -277,12 +307,34 @@ export function Register() {
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
+                    onBlur={handleEmailBlur}
                     autoComplete="email"
                     required
-                    className="input-field pl-12"
+                    className="input-field pl-12 pr-12"
                     placeholder="john@company.com"
                   />
+                  {emailStatus === 'checking' && (
+                    <Loader className="absolute right-4 top-3.5 text-gray-400 animate-spin" size={20} />
+                  )}
+                  {emailStatus === 'available' && (
+                    <Check className="absolute right-4 top-3.5 text-emerald-500" size={20} />
+                  )}
+                  {emailStatus === 'taken' && (
+                    <X className="absolute right-4 top-3.5 text-red-500" size={20} />
+                  )}
                 </div>
+                {emailStatus === 'taken' && (
+                  <p className="mt-1.5 text-xs font-semibold flex items-center gap-1 text-red-500">
+                    <X size={13} />
+                    This email already exists. Please try another email or{' '}
+                    <Link to="/login" className="underline font-bold">sign in</Link>.
+                  </p>
+                )}
+                {emailStatus === 'available' && (
+                  <p className="mt-1.5 text-xs font-semibold flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                    <Check size={13} /> Email is available
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
@@ -365,8 +417,15 @@ export function Register() {
                 </div>
               )}
 
-              <button type="submit" className="btn-primary w-full py-3 sm:py-4 mt-6 sm:mt-8 text-base sm:text-lg">
-                Continue to Packages <ArrowRight size={20} />
+              <button
+                type="submit"
+                disabled={emailStatus === 'taken' || checkingNext}
+                className="btn-primary w-full py-3 sm:py-4 mt-6 sm:mt-8 text-base sm:text-lg disabled:opacity-60 disabled:cursor-not-allowed">
+                {checkingNext ? (
+                  <>Checking… <Loader size={20} className="animate-spin" /></>
+                ) : (
+                  <>Continue to Packages <ArrowRight size={20} /></>
+                )}
               </button>
 
               <p className="flex items-center justify-center gap-1.5 mt-4 text-xs text-gray-500 dark:text-gray-400 font-medium">
