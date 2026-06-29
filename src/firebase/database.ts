@@ -163,7 +163,7 @@ export const addDocument = async <T extends Record<string, any>>(
   data: T
 ): Promise<string> => {
   try {
-    const newRef = ref(database, `${path}/${Date.now()}_${Math.random()}`);
+    const newRef = ref(database, `${path}/${Date.now()}_${Math.random().toString(36).slice(2, 10)}`);
     const documentId = newRef.key || '';
     await set(newRef, {
       ...data,
