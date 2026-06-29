@@ -1207,45 +1207,6 @@ app.mount('#app')
             </div>
           </div>
         </div>
-
-        {/* Live Preview - FUNCTIONAL WIDGET */}
-        <div className="bento-card flex flex-col h-[600px] xl:sticky xl:top-24 overflow-hidden p-0 relative">
-          <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-navy-700 bg-white dark:bg-navy-900 z-10">
-            <div className="flex items-center gap-3">
-              <Settings2 className="text-emerald-500 dark:text-cyan-400" size={20} />
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Live Preview - Functional</h2>
-              <span className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full font-semibold">✓ Works</span>
-            </div>
-            <button
-              onClick={() => window.location.reload()}
-              className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-800 rounded-lg transition-colors"
-              title="Reload Preview">
-              <RefreshCw size={18} />
-            </button>
-          </div>
-
-          {/* Website Preview with REAL WIDGET */}
-          <div className="flex-1 bg-gradient-to-b from-gray-100 to-gray-50 dark:from-navy-900 dark:to-navy-950 relative overflow-hidden" id="preview-container">
-            {/* Website Background Content */}
-            <div className="relative h-full p-8 flex flex-col">
-              {/* Fake Website Header */}
-              <div className="space-y-4 mb-8">
-                <div className="w-32 h-6 bg-gray-300 dark:bg-navy-700 rounded-md"></div>
-                <div className="w-2/3 h-10 bg-gray-300 dark:bg-navy-700 rounded-lg"></div>
-                <div className="w-1/2 h-4 bg-gray-300 dark:bg-navy-700 rounded"></div>
-              </div>
-
-              {/* Fake Website Content Grid */}
-              <div className="grid grid-cols-2 gap-4 flex-1">
-                <div className="bg-gray-300 dark:bg-navy-700 rounded-xl h-full"></div>
-                <div className="bg-gray-300 dark:bg-navy-700 rounded-xl h-full"></div>
-              </div>
-
-              {/* REAL WIDGET WILL RENDER HERE */}
-              {/* The widget.js script will inject the floating button and chat iframe */}
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Widget script will be injected by useEffect */}
