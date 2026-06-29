@@ -10,6 +10,11 @@ import {
   CheckCircle2,
   CreditCard,
   Loader,
+  Eye,
+  EyeOff,
+  ShieldCheck,
+  Check,
+  X,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { registerUser } from '../firebase/auth';
@@ -28,7 +33,10 @@ export function Register() {
     company: '',
     email: '',
     password: '',
+    confirmPassword: '',
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   
   const [selectedPackage, setSelectedPackage] = useState('professional');
   
@@ -64,8 +72,16 @@ export function Register() {
       setError('Please fill in all fields');
       return;
     }
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+    if (passwordStrength < 3) {
+      setError('Please choose a stronger password (mix upper, lower, number, symbol)');
+      return;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
       return;
     }
     setStep(2);
@@ -114,9 +130,23 @@ export function Register() {
 
   const pkg: Package | undefined = PACKAGES.find((p) => p.id === selectedPackage);
 
+  // Password strength checks
+  const pw = formData.password;
+  const checks = {
+    length: pw.length >= 8,
+    upper: /[A-Z]/.test(pw),
+    lower: /[a-z]/.test(pw),
+    number: /\d/.test(pw),
+    symbol: /[^A-Za-z0-9]/.test(pw),
+  };
+  const passwordStrength = Object.values(checks).filter(Boolean).length;
+  const strengthLabel = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong', 'Excellent'][passwordStrength];
+  const strengthColor = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e', '#10b981'][passwordStrength];
+  const passwordsMatch = formData.confirmPassword.length > 0 && pw === formData.confirmPassword;
+
   return (
     <div className="min-h-screen flex bg-[#f8fafc] dark:bg-navy-950">
-      <div className="w-full max-w-2xl mx-auto flex flex-col justify-center px-4 py-8 sm:px-6 sm:py-12 transition-all">
+      <div className="w-full max-w-3xl mx-auto flex flex-col justify-center px-4 py-8 sm:px-6 sm:py-12 transition-all">
         <Link
           to="/"
           className="flex items-center justify-center gap-3 mb-6 sm:mb-10">
@@ -241,28 +271,96 @@ export function Register() {
                 </div>
               </div>
 
-              <div>
-                <label className="label-text">Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-3.5 text-gray-400" size={20} />
-                  <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    autoComplete="new-password"
-                    required
-                    className="input-field pl-12"
-                    placeholder="••••••••"
-                  />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+                <div>
+                  <label className="label-text">Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-3.5 text-gray-400" size={20} />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      autoComplete="new-password"
+                      required
+                      className="input-field pl-12 pr-12"
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="label-text">Confirm Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-3.5 text-gray-400" size={20} />
+                    <input
+                      type={showConfirm ? 'text' : 'password'}
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                      autoComplete="new-password"
+                      required
+                      className="input-field pl-12 pr-12"
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirm((v) => !v)}
+                      className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                      aria-label={showConfirm ? 'Hide password' : 'Show password'}>
+                      {showConfirm ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                  {formData.confirmPassword.length > 0 && (
+                    <p className={`mt-1.5 text-xs font-semibold flex items-center gap-1 ${passwordsMatch ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                      {passwordsMatch ? <Check size={13} /> : <X size={13} />}
+                      {passwordsMatch ? 'Passwords match' : 'Passwords do not match'}
+                    </p>
+                  )}
                 </div>
               </div>
+
+              {formData.password.length > 0 && (
+                <div className="-mt-1">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Password strength</span>
+                    <span className="text-xs font-bold" style={{ color: strengthColor }}>{strengthLabel}</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-gray-200 dark:bg-navy-700 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-300" style={{ width: `${(passwordStrength / 5) * 100}%`, backgroundColor: strengthColor }} />
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-1 mt-2.5">
+                    {[
+                      { ok: checks.length, label: '8+ characters' },
+                      { ok: checks.upper, label: 'Uppercase' },
+                      { ok: checks.lower, label: 'Lowercase' },
+                      { ok: checks.number, label: 'Number' },
+                      { ok: checks.symbol, label: 'Symbol' },
+                    ].map((c) => (
+                      <span key={c.label} className={`text-[11px] font-medium flex items-center gap-1 ${c.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'}`}>
+                        {c.ok ? <Check size={12} /> : <X size={12} />}{c.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <button type="submit" className="btn-primary w-full py-3 sm:py-4 mt-6 sm:mt-8 text-base sm:text-lg">
                 Continue to Packages <ArrowRight size={20} />
               </button>
 
-              <p className="mt-6 sm:mt-8 text-center text-sm sm:text-base text-gray-600 dark:text-gray-400 font-medium">
+              <p className="flex items-center justify-center gap-1.5 mt-4 text-xs text-gray-500 dark:text-gray-400 font-medium">
+                <ShieldCheck size={14} className="text-emerald-500 dark:text-cyan-400" />
+                Your data is encrypted and securely stored.
+              </p>
+
+              <p className="mt-4 sm:mt-5 text-center text-sm sm:text-base text-gray-600 dark:text-gray-400 font-medium">
                 Already have an account?{' '}
                 <Link to="/login" className="font-bold text-emerald-600 dark:text-cyan-400 hover:underline">
                   Sign in
