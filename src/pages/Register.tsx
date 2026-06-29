@@ -123,7 +123,21 @@ export function Register() {
         navigate('/dashboard');
       }, 1500);
     } catch (err: any) {
-      setError(err.message || 'Registration failed. Please try again.');
+      const code = err?.code || '';
+      if (code === 'auth/email-already-in-use') {
+        setError('This email is already registered. Please try another email or sign in.');
+        setStep(1);
+      } else if (code === 'auth/invalid-email') {
+        setError('That email address looks invalid. Please enter a valid email.');
+        setStep(1);
+      } else if (code === 'auth/weak-password') {
+        setError('Your password is too weak. Please choose a stronger password.');
+        setStep(1);
+      } else if (code === 'auth/network-request-failed') {
+        setError('Network error. Please check your connection and try again.');
+      } else {
+        setError(err?.message || 'Registration failed. Please try again.');
+      }
       setLoading(false);
     }
   };
