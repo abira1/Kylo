@@ -13,18 +13,13 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { useRealtimeData } from '../hooks/useData';
 import {
-  getClientProfile,
   saveClientProfile,
+  subscribeToClientProfile,
   subscribeToInvoices,
   ClientProfile,
   Invoice } from
 '../services/dataService';
-
-const PLANS = [
-  { id: 'Starter', price: 29, tagline: 'For small teams getting started', features: ['1,000 conversations/mo', '1 chatbot', 'Email support'] },
-  { id: 'Growth', price: 99, tagline: 'For scaling businesses', features: ['10,000 conversations/mo', '5 chatbots', 'CRM integrations', 'Priority support'] },
-  { id: 'Enterprise', price: 299, tagline: 'For high-volume operations', features: ['Unlimited conversations', 'Unlimited chatbots', 'SLA + dedicated manager', 'SSO & audit logs'] }
-] as const;
+import { PACKAGES, getPackageById } from '../services/paymentService';
 
 const luhnValid = (num: string): boolean => {
   const s = num.replace(/\s/g, '');
@@ -68,8 +63,8 @@ export function AccountProfile() {
 
   useEffect(() => {
     if (!user?.uid) return;
-    getClientProfile(user.uid).then((p) => {
-      const [first, ...rest] = (user.displayName || '').split(' ');
+    const [first, ...rest] = (user.displayName || '').split(' ');
+    const unsub = subscribeToClientProfile(user.uid, (p) => {
       setProfile({
         ...p,
         firstName: p.firstName || first || '',
@@ -77,10 +72,19 @@ export function AccountProfile() {
         email: p.email || user.email || ''
       });
     });
+    return () => unsub();
   }, [user?.uid, user?.displayName, user?.email]);
 
   const update = (k: keyof ClientProfile, v: any) =>
     setProfile((p) => (p ? { ...p, [k]: v } : p));
+
+  const choosePackage = async (packageId: ClientProfile['packageId']) => {
+    if (!user?.uid || !profile) return;
+    setProfile({ ...profile, packageId });
+    try {
+      await saveClientProfile(user.uid, { packageId });
+    } catch (e) { console.error(e); }
+  };
 
   const handleSave = async () => {
     if (!user?.uid || !profile) return;
@@ -144,7 +148,7 @@ export function AccountProfile() {
               {profile.firstName || 'Your'} {profile.lastName || 'Name'}
             </h2>
             <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-cyan-400 bg-mint-100 dark:bg-navy-800 px-3 py-1 rounded-full">
-              <Crown size={13} /> {profile.plan}
+              <Crown size={13} /> {getPackageById(profile.packageId)?.name || 'Starter'}
             </span>
             <span className={`inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide px-3 py-1 rounded-full ${statusBadge[profile.planStatus] || statusBadge.canceled}`}>
               {profile.planStatus.replace('_', ' ')}
@@ -193,22 +197,22 @@ export function AccountProfile() {
           <span className="text-sm text-gray-500">{profile.renewsAt ? `Renews ${new Date(profile.renewsAt).toLocaleDateString()}` : 'No renewal date'}</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {PLANS.map((plan) => {
-            const active = plan.id === profile.plan;
+          {PACKAGES.map((plan) => {
+            const active = plan.id === profile.packageId;
             return (
               <div key={plan.id} className={`rounded-2xl border-2 p-6 transition-all ${active ? 'border-emerald-500 bg-mint-50/50 dark:bg-navy-800/60' : 'border-gray-100 dark:border-navy-700'}`}>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-bold text-gray-900 dark:text-white">{plan.id}</span>
+                  <span className="font-bold text-gray-900 dark:text-white">{plan.name}</span>
                   {active && <span className="text-xs font-bold text-emerald-600">Current</span>}
                 </div>
                 <div className="text-3xl font-extrabold text-gray-900 dark:text-white mb-1">${plan.price}<span className="text-sm font-medium text-gray-400">/mo</span></div>
-                <p className="text-xs text-gray-500 mb-4">{plan.tagline}</p>
+                <p className="text-xs text-gray-500 mb-4">{plan.description}</p>
                 <ul className="space-y-2 mb-5">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300"><CheckCircle2 size={14} className="text-emerald-500" /> {f}</li>
                   ))}
                 </ul>
-                <button onClick={() => update('plan', plan.id)} className={active ? 'btn-secondary w-full text-sm' : 'btn-primary w-full text-sm'}>
+                <button onClick={() => choosePackage(plan.id as ClientProfile['packageId'])} className={active ? 'btn-secondary w-full text-sm' : 'btn-primary w-full text-sm'}>
                   {active ? 'Active' : 'Choose'}
                 </button>
               </div>

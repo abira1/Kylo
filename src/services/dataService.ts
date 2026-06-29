@@ -462,6 +462,7 @@ export interface ClientProfile {
   phone: string;
   jobTitle: string;
   plan: 'Free' | 'Starter' | 'Growth' | 'Enterprise';
+  packageId: 'starter' | 'professional' | 'enterprise';
   planStatus: 'active' | 'trialing' | 'past_due' | 'canceled';
   renewsAt: string;
   card: {
@@ -480,6 +481,7 @@ const DEFAULT_PROFILE: ClientProfile = {
   phone: '',
   jobTitle: '',
   plan: 'Starter',
+  packageId: 'starter',
   planStatus: 'active',
   renewsAt: '',
   card: null,
@@ -493,6 +495,15 @@ export const getClientProfile = async (clientId: string): Promise<ClientProfile>
     console.error('Error fetching client profile:', error);
     return DEFAULT_PROFILE;
   }
+};
+
+export const subscribeToClientProfile = (
+  clientId: string,
+  callback: (data: ClientProfile) => void
+): (() => void) => {
+  return subscribeToData(`clients/${clientId}/profile`, (data) => {
+    callback({ ...DEFAULT_PROFILE, ...((data as Partial<ClientProfile>) || {}) });
+  });
 };
 
 export const saveClientProfile = async (
