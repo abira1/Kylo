@@ -238,6 +238,10 @@ export function Embed() {
 
   // Inject widget.js for Live Preview
   useEffect(() => {
+    // Floating "Support Assistant" preview is hidden for now.
+    // (Skip injecting widget.js so no floating chat bubble appears on this page.)
+    return;
+    // eslint-disable-next-line no-unreachable
     // Configure widget for preview
     (window as any).KYLO_CONFIG = {
       publicKey: publicWidgetKey,
