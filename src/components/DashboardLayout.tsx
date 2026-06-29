@@ -20,6 +20,10 @@ import {
   Bot } from
 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../hooks/useAuth';
+import { useRealtimeData } from '../hooks/useData';
+import { subscribeToNotifications, AppNotification } from '../services/dataService';
+import { NotificationsPanel } from './NotificationsPanel';
 const NAV_ITEMS = [
 {
   path: '/dashboard',
@@ -66,7 +70,15 @@ const NAV_ITEMS = [
 export function DashboardLayout() {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifSub = React.useCallback((cb: (d: AppNotification[]) => void) => {
+    if (user?.uid) return subscribeToNotifications(user.uid, cb);
+    cb([]); return () => {};
+  }, [user?.uid]);
+  const { data: notifications } = useRealtimeData<AppNotification[]>(notifSub, []);
+  const unreadCount = notifications.filter((n) => !n.read).length;
   const handleLogout = () => {
     navigate('/login');
   };
@@ -217,9 +229,11 @@ export function DashboardLayout() {
               
               {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
             </button>
-            <button className="relative p-2 sm:p-2.5 rounded-xl bg-white dark:bg-navy-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-700 transition-colors shadow-sm">
+            <button onClick={() => setNotifOpen(true)} className="relative p-2 sm:p-2.5 rounded-xl bg-white dark:bg-navy-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-700 transition-colors shadow-sm">
               <Bell size={18} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full border-2 border-white dark:border-navy-800"></span>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full border-2 border-white dark:border-navy-800 flex items-center justify-center">{unreadCount > 9 ? '9+' : unreadCount}</span>
+              )}
             </button>
             <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-tr from-emerald-400 to-turquoise-500 dark:from-cyan-500 dark:to-emerald-500 shadow-md cursor-pointer flex items-center justify-center text-white font-bold text-sm sm:text-base">
               S
@@ -232,6 +246,7 @@ export function DashboardLayout() {
           <Outlet />
         </div>
       </main>
+      <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
     </div>);
 
 }

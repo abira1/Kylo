@@ -605,6 +605,56 @@ export const saveNotificationPrefs = async (
 };
 
 /**
+ * NOTIFICATIONS (inbox)
+ */
+
+export type NotificationType = 'lead' | 'message' | 'system' | 'billing';
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export const subscribeToNotifications = (
+  clientId: string,
+  callback: (items: AppNotification[]) => void
+): (() => void) => {
+  return subscribeToOrderedData(
+    `clients/${clientId}/notifications`,
+    'createdAt',
+    100,
+    (data) => callback((data as AppNotification[]) || [])
+  );
+};
+
+export const addNotification = async (
+  clientId: string,
+  n: Omit<AppNotification, 'id' | 'read' | 'createdAt'>
+): Promise<string> => {
+  return addDocument(`clients/${clientId}/notifications`, {
+    ...n,
+    read: false,
+    createdAt: new Date().toISOString(),
+  });
+};
+
+export const markNotificationRead = async (clientId: string, id: string): Promise<void> => {
+  await updateData(`clients/${clientId}/notifications/${id}`, { read: true });
+};
+
+export const markAllNotificationsRead = async (clientId: string, ids: string[]): Promise<void> => {
+  await Promise.all(ids.map((id) => updateData(`clients/${clientId}/notifications/${id}`, { read: true })));
+};
+
+export const deleteNotification = async (clientId: string, id: string): Promise<void> => {
+  await deleteData(`clients/${clientId}/notifications/${id}`);
+};
+
+/**
  * SUMMARY/DASHBOARD DATA
  */
 
