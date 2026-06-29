@@ -4,6 +4,7 @@ import { CrmIntegrationPanel } from '../../components/CrmIntegrationPanel';
 import { AccountProfile } from '../../components/AccountProfile';
 import { TeamSettings } from '../../components/TeamSettings';
 import { SecuritySettings } from '../../components/SecuritySettings';
+import { NotificationSettings } from '../../components/NotificationSettings';
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState(() => {
@@ -76,6 +77,8 @@ export function Settings() {
           {activeTab === 'team' && <TeamSettings />}
 
           {activeTab === 'security' && <SecuritySettings />}
+
+          {activeTab === 'notifications' && <NotificationSettings />}
 
           {activeTab === 'api' &&
           <div className="bento-card space-y-6">
@@ -160,7 +163,7 @@ export function Settings() {
           }
 
           {/* Placeholders for other tabs to keep the file concise but functional */}
-          {['notifications'].includes(activeTab) &&
+          {['team-deprecated'].includes(activeTab) &&
           <div className="bento-card flex flex-col items-center justify-center py-20 text-center">
               <div className="w-16 h-16 bg-gray-100 dark:bg-navy-800 rounded-full flex items-center justify-center mb-4">
                 <Settings2 className="w-8 h-8 text-gray-400" />

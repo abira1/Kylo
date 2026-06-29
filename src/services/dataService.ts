@@ -562,6 +562,49 @@ export const removeTeamMember = async (
 };
 
 /**
+ * NOTIFICATION PREFERENCES
+ */
+
+export interface NotificationPrefs {
+  emailNewLead: boolean;
+  emailWeeklyReport: boolean;
+  emailProductUpdates: boolean;
+  emailBilling: boolean;
+  pushNewMessage: boolean;
+  pushMentions: boolean;
+  pushSystemAlerts: boolean;
+  smsCritical: boolean;
+}
+
+export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
+  emailNewLead: true,
+  emailWeeklyReport: true,
+  emailProductUpdates: false,
+  emailBilling: true,
+  pushNewMessage: true,
+  pushMentions: true,
+  pushSystemAlerts: true,
+  smsCritical: false,
+};
+
+export const getNotificationPrefs = async (clientId: string): Promise<NotificationPrefs> => {
+  try {
+    const data = await readData<Partial<NotificationPrefs>>(`clients/${clientId}/notificationPrefs`);
+    return { ...DEFAULT_NOTIFICATION_PREFS, ...(data || {}) };
+  } catch (error) {
+    console.error('Error fetching notification prefs:', error);
+    return DEFAULT_NOTIFICATION_PREFS;
+  }
+};
+
+export const saveNotificationPrefs = async (
+  clientId: string,
+  prefs: Partial<NotificationPrefs>
+): Promise<void> => {
+  await updateData(`clients/${clientId}/notificationPrefs`, prefs);
+};
+
+/**
  * SUMMARY/DASHBOARD DATA
  */
 
