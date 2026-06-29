@@ -17,7 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { registerUser, checkEmailExists } from '../firebase/auth';
+import { registerUser } from '../firebase/auth';
 import { processPayment, PACKAGES, Package } from '../services/paymentService';
 import { CreditCardForm, type CardState, type CardValidity } from '../components/ui/credit-card-form';
 
@@ -39,6 +39,7 @@ export function Register() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
   const [checkingNext, setCheckingNext] = useState(false);
+  const [createdUser, setCreatedUser] = useState<{ uid: string } | null>(null);
   
   const [selectedPackage, setSelectedPackage] = useState('professional');
   
@@ -54,22 +55,14 @@ export function Register() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    if (name === 'email') setEmailStatus('idle');
+    if (name === 'email') {
+      setEmailStatus('idle');
+      setCreatedUser(null);
+    }
     setError('');
   };
 
   const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
-  const handleEmailBlur = async () => {
-    const email = formData.email.trim();
-    if (!email || !isValidEmail(email)) {
-      setEmailStatus('idle');
-      return;
-    }
-    setEmailStatus('checking');
-    const exists = await checkEmailExists(email);
-    setEmailStatus(exists ? 'taken' : 'available');
-  };
 
   const handleCardChange = (state: CardState, validity: CardValidity) => {
     setPaymentData({
@@ -104,17 +97,37 @@ export function Register() {
       setError('Passwords do not match');
       return;
     }
-    // Final email-availability check before advancing
-    setCheckingNext(true);
-    const exists = await checkEmailExists(formData.email.trim());
-    setCheckingNext(false);
-    if (exists) {
-      setEmailStatus('taken');
-      setError('This email is already registered. Please try another email or sign in.');
+    // If we already created the account, just continue
+    if (createdUser) {
+      setStep(2);
       return;
     }
-    setEmailStatus('available');
-    setStep(2);
+    // Create the account now — reliably detects duplicate emails
+    setCheckingNext(true);
+    try {
+      const user = await registerUser(
+        formData.email.trim(),
+        formData.password,
+        formData.fullName
+      );
+      setCreatedUser(user);
+      setEmailStatus('available');
+      setStep(2);
+    } catch (err: any) {
+      const code = err?.code || '';
+      if (code === 'auth/email-already-in-use') {
+        setEmailStatus('taken');
+        setError('This email is already registered. Please try another email or sign in.');
+      } else if (code === 'auth/invalid-email') {
+        setError('That email address looks invalid. Please enter a valid email.');
+      } else if (code === 'auth/weak-password') {
+        setError('Your password is too weak. Please choose a stronger password.');
+      } else {
+        setError(err?.message || 'Could not create account. Please try again.');
+      }
+    } finally {
+      setCheckingNext(false);
+    }
   };
 
   const handlePackageSelect = (e: React.FormEvent) => {
@@ -132,19 +145,15 @@ export function Register() {
       if (!paymentData.cardNumber || !paymentData.expiryDate || !paymentData.cvc) {
         throw new Error('Please fill in all payment details');
       }
+      if (!createdUser) {
+        throw new Error('Account not created. Please go back and re-enter your details.');
+      }
 
-      // Register user
-      const user = await registerUser(
-        formData.email,
-        formData.password,
-        formData.fullName
-      );
-
-      // Process payment
-      const payment = await processPayment(
+      // Process payment for the already-created account
+      await processPayment(
         formData.email,
         selectedPackage,
-        user.uid,
+        createdUser.uid,
         formData.fullName
       );
 
@@ -307,18 +316,11 @@ export function Register() {
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    onBlur={handleEmailBlur}
                     autoComplete="email"
                     required
                     className="input-field pl-12 pr-12"
                     placeholder="john@company.com"
                   />
-                  {emailStatus === 'checking' && (
-                    <Loader className="absolute right-4 top-3.5 text-gray-400 animate-spin" size={20} />
-                  )}
-                  {emailStatus === 'available' && (
-                    <Check className="absolute right-4 top-3.5 text-emerald-500" size={20} />
-                  )}
                   {emailStatus === 'taken' && (
                     <X className="absolute right-4 top-3.5 text-red-500" size={20} />
                   )}
@@ -328,11 +330,6 @@ export function Register() {
                     <X size={13} />
                     This email already exists. Please try another email or{' '}
                     <Link to="/login" className="underline font-bold">sign in</Link>.
-                  </p>
-                )}
-                {emailStatus === 'available' && (
-                  <p className="mt-1.5 text-xs font-semibold flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                    <Check size={13} /> Email is available
                   </p>
                 )}
               </div>
@@ -422,7 +419,7 @@ export function Register() {
                 disabled={emailStatus === 'taken' || checkingNext}
                 className="btn-primary w-full py-3 sm:py-4 mt-6 sm:mt-8 text-base sm:text-lg disabled:opacity-60 disabled:cursor-not-allowed">
                 {checkingNext ? (
-                  <>Checking… <Loader size={20} className="animate-spin" /></>
+                  <>Creating account… <Loader size={20} className="animate-spin" /></>
                 ) : (
                   <>Continue to Packages <ArrowRight size={20} /></>
                 )}
