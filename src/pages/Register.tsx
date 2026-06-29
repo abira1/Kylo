@@ -355,17 +355,24 @@ export function Register() {
               </div>
 
               {/* Order Summary */}
-              <div className="mb-8 p-6 bg-gray-50 dark:bg-navy-900/50 rounded-2xl border border-gray-100 dark:border-navy-700">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-600 dark:text-gray-400 font-medium">{pkg?.name} Plan</span>
-                  <span className="text-gray-900 dark:text-white font-bold">${pkg?.price}.00</span>
+              <div className="mb-6 sm:mb-8 p-5 sm:p-6 bg-gradient-to-br from-mint-50 to-white dark:from-navy-900/60 dark:to-navy-900/30 rounded-2xl border border-gray-100 dark:border-navy-700">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <div className="font-bold text-lg text-gray-900 dark:text-white">{pkg?.name} Plan</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Billed monthly · cancel anytime</div>
+                  </div>
+                  <span className="text-emerald-700 dark:text-cyan-400 text-xs font-bold bg-mint-100 dark:bg-cyan-900/20 px-3 py-1 rounded-full uppercase tracking-wide">Secure</span>
                 </div>
-                <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  Billed monthly
+                <div className="space-y-1.5 mb-4">
+                  {pkg?.features?.slice(0, 3).map((feature, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 font-medium">
+                      <CheckCircle2 size={15} className="text-emerald-500 dark:text-cyan-400 flex-shrink-0" /> {feature}
+                    </div>
+                  ))}
                 </div>
                 <div className="border-t border-gray-200 dark:border-navy-700 pt-4 flex justify-between items-center">
-                  <span className="font-bold text-gray-900 dark:text-white">Total</span>
-                  <span className="text-lg font-extrabold text-emerald-600 dark:text-cyan-400">${pkg?.price}.00</span>
+                  <span className="font-bold text-gray-900 dark:text-white">Total due today</span>
+                  <span className="text-2xl font-extrabold text-emerald-600 dark:text-cyan-400">${pkg?.price}.00</span>
                 </div>
               </div>
 
@@ -377,22 +384,31 @@ export function Register() {
                   defaultHolder={formData.fullName.toUpperCase()}
                   onChange={handleCardChange}
                 />
-                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                <div className="flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                  <Lock size={13} /> 256-bit SSL encrypted · we never store full card numbers
+                </div>
+                <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
                   Use 4242 4242 4242 4242 for testing
                 </p>
               </div>
 
+              {error && (
+                <div className="mt-5 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 text-sm text-center font-medium">
+                  {error}
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={loading || !cardValid}
-                className="btn-primary w-full py-3 sm:py-4 mt-8 text-base sm:text-lg disabled:opacity-50">
+                className="btn-primary w-full py-3 sm:py-4 mt-6 text-base sm:text-lg disabled:opacity-50">
                 {loading ? (
                   <>
                     <Loader size={20} className="animate-spin" /> Processing...
                   </>
                 ) : (
                   <>
-                    Complete Registration & Activate Account <ArrowRight size={20} />
+                    Pay ${pkg?.price}.00 & Activate Account <ArrowRight size={20} />
                   </>
                 )}
               </button>
