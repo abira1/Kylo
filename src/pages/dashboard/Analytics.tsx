@@ -17,29 +17,7 @@ import { useRealtimeData } from '../../hooks/useData';
 import { subscribeToChartData, ChartDataPoint } from '../../services/dataService';
 import { getConnectionStatus, fetchLeads as fetchCrmLeads } from '../../services/crmService';
 
-const PIE_DATA = [
-  {
-    name: 'Website',
-    value: 65
-  },
-  {
-    name: 'WhatsApp',
-    value: 25
-  },
-  {
-    name: 'Other',
-    value: 10
-  }
-];
-
 const COLORS = ['#22C55E', '#38BDF8', '#475569', '#F59E0B', '#8B5CF6'];
-
-const LEAD_STATUS_DATA = [
-  { name: 'New', count: 24, color: '#3B82F6', bgColor: '#DBEAFE' },
-  { name: 'Ongoing', count: 18, color: '#8B5CF6', bgColor: '#EDE9FE' },
-  { name: 'Pending', count: 12, color: '#F59E0B', bgColor: '#FEF3C7' },
-  { name: 'Complete', count: 31, color: '#10B981', bgColor: '#D1FAE5' }
-];
 
 // ---- Realtime CRM (Zoho) analytics helpers --------------------------------
 
@@ -209,10 +187,10 @@ export function Analytics() {
     );
   }
 
-  // Active data sources: live Zoho when connected, otherwise existing fallbacks
-  const statusData = crmConnected ? crmStatusData : LEAD_STATUS_DATA;
+  // Active data sources: live Zoho when connected, otherwise empty (new accounts start clean)
+  const statusData = crmConnected ? crmStatusData : buildStatusData([]);
   const trendData = crmConnected ? crmTrendData : chartData;
-  const sourceData = crmConnected ? crmSourceData : PIE_DATA;
+  const sourceData = crmConnected ? crmSourceData : [];
   const trendLoading = crmConnected ? crmLoading : dataLoading;
 
   // Calculate stats from the active data source
@@ -400,6 +378,12 @@ export function Analytics() {
             Lead Sources
           </h2>
           <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-0">
+            {sourceData.length === 0 ? (
+              <div className="flex items-center justify-center h-56 sm:h-64 w-full">
+                <p className="text-gray-500 dark:text-gray-400">No data yet</p>
+              </div>
+            ) : (
+            <>
             <div className="h-56 sm:h-64 w-full sm:w-1/2">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -450,6 +434,8 @@ export function Analytics() {
                 </div>
               ))}
             </div>
+            </>
+            )}
           </div>
         </div>
       </div>
@@ -486,7 +472,7 @@ export function Analytics() {
               wonLeads
             ) : (
               <>
-                4.8
+                0
                 <span className="text-sm sm:text-base text-gray-400">/5.0</span>
               </>
             )}
@@ -500,7 +486,7 @@ export function Analytics() {
             {crmConnected ? 'Conversion Rate' : 'Human Handoff Rate'}
           </div>
           <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            {crmConnected ? `${conversionRate}%` : '8.2%'}
+            {crmConnected ? `${conversionRate}%` : '0%'}
           </div>
           <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-mint-100 dark:bg-emerald-900/20 px-2.5 py-1 rounded-full self-start">
             {crmConnected ? 'Won / total leads' : 'Optimal range'}

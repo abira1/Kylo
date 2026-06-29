@@ -90,7 +90,7 @@ function StatCard({ title, value, icon }: StatCardProps) {
 
 function PaymentMethodCard({ onSave, cardSaved }: { onSave: () => void; cardSaved: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [cardNumber, setCardNumber] = useState('4242');
+  const [cardNumber, setCardNumber] = useState('');
   const [expiryMonth, setExpiryMonth] = useState('12');
   const [expiryYear, setExpiryYear] = useState('25');
 

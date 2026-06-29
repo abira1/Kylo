@@ -207,7 +207,7 @@ export function Home() {
         <KPICard
           title="Total Leads"
           value={totalLeads.toString()}
-          trend="+12.5%"
+          trend=""
           isPositive={true}
           icon={Users}
           color="emerald"
@@ -216,7 +216,7 @@ export function Home() {
         <KPICard
           title="Qualified Leads"
           value={qualifiedLeads.toString()}
-          trend="+5.2%"
+          trend=""
           isPositive={true}
           icon={MessageSquare}
           color="turquoise"
@@ -225,7 +225,7 @@ export function Home() {
         <KPICard
           title={crmConnected ? 'New Leads' : 'Lead Quality Score'}
           value={crmConnected ? newLeads.toString() : `${avgLeadScore}`}
-          trend="+2.1%"
+          trend=""
           isPositive={true}
           icon={Zap}
           color="cyan"
@@ -234,7 +234,7 @@ export function Home() {
         <KPICard
           title={crmConnected ? 'Won' : 'Conversations'}
           value={crmConnected ? wonLeads.toString() : '0'}
-          trend="+0%"
+          trend=""
           isPositive={true}
           icon={crmConnected ? TrendingUp : Clock}
           color="emerald"
@@ -451,6 +451,7 @@ function KPICard({ title, value, trend, isPositive, icon: Icon, color }: any) {
         <div className={`p-2.5 sm:p-3 rounded-xl sm:rounded-2xl ${colorMap[color]}`}>
           <Icon size={20} className="sm:w-6 sm:h-6" />
         </div>
+        {trend ? (
         <div
           className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full ${
             isPositive
@@ -461,6 +462,7 @@ function KPICard({ title, value, trend, isPositive, icon: Icon, color }: any) {
           {isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
           {trend}
         </div>
+        ) : null}
       </div>
       <div className="text-gray-500 dark:text-gray-400 text-xs font-semibold mb-1 uppercase tracking-wider">
         {title}
