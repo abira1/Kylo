@@ -412,6 +412,48 @@ export const deleteTrainingFile = async (
 };
 
 /**
+ * Sanitize a string so it is safe to use as a Realtime Database key.
+ */
+const sanitizeKey = (value: string): string =>
+  value
+    .replace(/[.#$/[\]]/g, '_')
+    .replace(/\s+/g, '_')
+    .replace(/_+/g, '_')
+    .toLowerCase() || 'client';
+
+export interface KnowledgeDocument {
+  fileName: string;
+  text: string;
+  charCount: number;
+  source: string;
+  uploadedAt: string;
+}
+
+/**
+ * Save extracted document text (as TXT) into the knowledge base, keyed by client.
+ * Stored at: knowledgeBase/{clientName}/documents/{docId}
+ */
+export const saveKnowledgeDocument = async (
+  clientName: string,
+  clientId: string,
+  doc: KnowledgeDocument
+): Promise<string> => {
+  try {
+    const clientKey = sanitizeKey(clientName || clientId);
+    const docId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    await writeData(`knowledgeBase/${clientKey}/documents/${docId}`, {
+      ...doc,
+      id: docId,
+      clientId,
+    });
+    return docId;
+  } catch (error) {
+    console.error('Error saving knowledge document:', error);
+    throw error;
+  }
+};
+
+/**
  * SUMMARY/DASHBOARD DATA
  */
 

@@ -1,19 +1,40 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   Upload,
   FileText,
   CheckCircle2,
   Clock,
   Trash2,
-  Database } from
+  Database,
+  Loader2,
+  Sparkles,
+  ShieldCheck,
+  X } from
 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useRealtimeData } from '../../hooks/useData';
-import { subscribeToTrainingFiles, deleteTrainingFile, TrainingFile } from '../../services/dataService';
+import {
+  subscribeToTrainingFiles,
+  deleteTrainingFile,
+  addTrainingFile,
+  saveKnowledgeDocument,
+  TrainingFile } from
+'../../services/dataService';
+import { extractTextFromFile } from '../../services/documentExtractor';
+
+type Stage = 'idle' | 'uploading' | 'training' | 'done' | 'error';
+
+const ACCEPTED = '.pdf,.docx,.doc,.txt,.csv,.md,.json,.html,.rtf';
+
+const formatSize = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
 
 export function Training() {
   const { user, loading: authLoading } = useAuth();
-  
+
   const subscribe = useCallback((cb: (data: TrainingFile[]) => void) => {
     if (user?.uid) {
       return subscribeToTrainingFiles(user.uid, cb);
@@ -28,6 +49,12 @@ export function Training() {
   );
 
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [stage, setStage] = useState<Stage>('idle');
+  const [stageFile, setStageFile] = useState<string>('');
+  const [progress, setProgress] = useState(0);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [dragActive, setDragActive] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleDeleteFile = async (fileId: string) => {
     if (!user?.uid) return;
@@ -38,6 +65,65 @@ export function Training() {
       console.error('Delete error:', error);
     }
     setDeleting(null);
+  };
+
+  const processFile = async (file: File) => {
+    if (!user?.uid) return;
+    setStageFile(file.name);
+    setErrorMsg('');
+    setStage('uploading');
+    setProgress(15);
+    try {
+      // 1. Extract & convert document to plain text
+      const { text, charCount } = await extractTextFromFile(file);
+      setProgress(50);
+      if (!text || charCount < 2) {
+        throw new Error('Could not read any text from this document.');
+      }
+
+      // 2. Train agent — save TXT to knowledge base under client name
+      setStage('training');
+      setProgress(70);
+      const clientName = user.displayName || user.email || user.uid;
+      await saveKnowledgeDocument(clientName, user.uid, {
+        fileName: file.name,
+        text,
+        charCount,
+        source: file.name,
+        uploadedAt: new Date().toISOString()
+      });
+      setProgress(88);
+
+      // 3. Record metadata for the knowledge base list
+      await addTrainingFile(user.uid, {
+        name: file.name,
+        type: file.name.split('.').pop()?.toUpperCase() || 'TXT',
+        size: formatSize(file.size),
+        uploadedAt: new Date().toISOString(),
+        url: '',
+        status: 'Indexed',
+        date: new Date().toISOString()
+      });
+      setProgress(100);
+      setStage('done');
+    } catch (err) {
+      console.error('Training error:', err);
+      setErrorMsg(err instanceof Error ? err.message : 'Something went wrong.');
+      setStage('error');
+    }
+  };
+
+  const onSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+    e.target.value = '';
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragActive(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
   };
 
   if (authLoading) {
@@ -51,9 +137,10 @@ export function Training() {
     );
   }
 
-  const storageUsedMB = (Array.isArray(trainingFiles) ? trainingFiles.length : 0) * 0.5; // Mock: 0.5MB per file
+  const storageUsedMB = (Array.isArray(trainingFiles) ? trainingFiles.length : 0) * 0.5;
   const storageUsedPercent = (storageUsedMB / 1024) * 100;
   const confidenceScore = trainingFiles.length > 0 ? Math.min(94 + trainingFiles.length * 2, 99) : 60;
+  const busy = stage === 'uploading' || stage === 'training';
 
   return (
     <div className="space-y-8">
@@ -69,7 +156,22 @@ export function Training() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Upload Area */}
         <div className="lg:col-span-2 space-y-8">
-          <div className="bento-card border-2 border-dashed border-gray-200 dark:border-navy-700 bg-gray-50/50 dark:bg-navy-900/30 hover:bg-mint-50/50 dark:hover:bg-navy-800/50 transition-colors cursor-pointer flex flex-col items-center justify-center py-20 shadow-none">
+          <input
+            ref={inputRef}
+            type="file"
+            accept={ACCEPTED}
+            onChange={onSelect}
+            className="hidden" />
+          <div
+            onClick={() => !busy && inputRef.current?.click()}
+            onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+            onDragLeave={() => setDragActive(false)}
+            onDrop={onDrop}
+            className={`bento-card border-2 border-dashed transition-colors cursor-pointer flex flex-col items-center justify-center py-20 shadow-none ${
+            dragActive ?
+            'border-emerald-500 bg-mint-50/60 dark:bg-navy-800/60' :
+            'border-gray-200 dark:border-navy-700 bg-gray-50/50 dark:bg-navy-900/30 hover:bg-mint-50/50 dark:hover:bg-navy-800/50'}`
+            }>
             <div className="w-20 h-20 bg-white dark:bg-navy-800 rounded-3xl flex items-center justify-center shadow-sm mb-6">
               <Upload className="w-10 h-10 text-emerald-500 dark:text-cyan-400" />
             </div>
@@ -77,7 +179,7 @@ export function Training() {
               Click to upload or drag and drop
             </h3>
             <p className="text-base text-gray-500 dark:text-gray-400 text-center max-w-md font-medium">
-              Support for PDF, DOCX, TXT, and CSV files. Max file size 50MB. The
+              Support for PDF, DOCX, DOC, TXT, CSV, MD, JSON. Max file size 50MB. The
               AI will automatically process and index the content.
             </p>
           </div>
@@ -187,6 +289,72 @@ export function Training() {
           </div>
         </div>
       </div>
+
+      {/* Processing / Training overlay */}
+      {stage !== 'idle' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md bg-white dark:bg-navy-800 rounded-3xl shadow-2xl p-8 text-center">
+            {(stage === 'uploading' || stage === 'training') && (
+              <>
+                <div className="relative w-20 h-20 mx-auto mb-6">
+                  <div className="absolute inset-0 rounded-full bg-emerald-100 dark:bg-emerald-900/30 animate-ping" />
+                  <div className="relative w-20 h-20 bg-gradient-to-br from-emerald-500 to-turquoise-500 rounded-full flex items-center justify-center">
+                    {stage === 'uploading' ? (
+                      <Loader2 className="w-9 h-9 text-white animate-spin" />
+                    ) : (
+                      <Sparkles className="w-9 h-9 text-white" />
+                    )}
+                  </div>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                  {stage === 'uploading' ? 'Processing document…' : 'Training your agent…'}
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400 text-sm mb-6 truncate">
+                  {stageFile}
+                </p>
+                <div className="w-full bg-gray-100 dark:bg-navy-900 rounded-full h-2.5 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-emerald-500 to-turquoise-500 h-2.5 rounded-full transition-all duration-500"
+                    style={{ width: `${progress}%` }} />
+                </div>
+                <p className="text-xs text-gray-400 mt-3">{progress}%</p>
+              </>
+            )}
+
+            {stage === 'done' && (
+              <>
+                <div className="w-20 h-20 mx-auto mb-6 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
+                  <ShieldCheck className="w-10 h-10 text-emerald-500" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Done!</h3>
+                <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
+                  Your agent has been trained on <span className="font-semibold">{stageFile}</span>.
+                </p>
+                <button
+                  onClick={() => setStage('idle')}
+                  className="btn-primary w-full py-3">
+                  Continue
+                </button>
+              </>
+            )}
+
+            {stage === 'error' && (
+              <>
+                <div className="w-20 h-20 mx-auto mb-6 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                  <X className="w-10 h-10 text-red-500" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Upload failed</h3>
+                <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">{errorMsg}</p>
+                <button
+                  onClick={() => setStage('idle')}
+                  className="btn-secondary w-full py-3">
+                  Close
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
