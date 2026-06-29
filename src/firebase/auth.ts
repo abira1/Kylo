@@ -8,6 +8,9 @@ import {
   User,
   GoogleAuthProvider,
   signInWithPopup,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword,
 } from 'firebase/auth';
 import { auth } from './config';
 
@@ -133,6 +136,20 @@ export const sendPasswordReset = async (email: string): Promise<void> => {
     console.error('Password reset error:', error);
     throw error;
   }
+};
+
+/**
+ * Change the current user's password (requires recent re-authentication).
+ */
+export const changePassword = async (
+  currentPassword: string,
+  newPassword: string
+): Promise<void> => {
+  const user = auth.currentUser;
+  if (!user || !user.email) throw new Error('You must be signed in to change your password.');
+  const credential = EmailAuthProvider.credential(user.email, currentPassword);
+  await reauthenticateWithCredential(user, credential);
+  await updatePassword(user, newPassword);
 };
 
 /**
