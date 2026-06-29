@@ -375,46 +375,42 @@ export function Register() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               onSubmit={handlePackageSelect}>
-              <div className="text-center mb-6 sm:mb-8">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white mb-2 sm:mb-3">
+              <div className="text-center mb-4 sm:mb-6">
+                <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-white mb-1">
                   Choose your package
                 </h1>
-                <p className="text-sm sm:text-lg text-gray-600 dark:text-gray-400 font-medium">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium">
                   Select the plan that best fits your needs.
                 </p>
               </div>
 
-              <div className="space-y-4 sm:space-y-5 mb-6 sm:mb-10">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-5 sm:mb-6">
                 {PACKAGES.map((p) => (
                   <div
                     key={p.id}
                     onClick={() => setSelectedPackage(p.id)}
-                    className={`p-6 rounded-3xl border-2 cursor-pointer transition-all relative ${
+                    className={`p-4 rounded-2xl border-2 cursor-pointer transition-all relative flex flex-col ${
                       selectedPackage === p.id
                         ? 'border-emerald-500 dark:border-cyan-500 bg-mint-50/50 dark:bg-cyan-900/10 shadow-md'
                         : 'border-gray-100 dark:border-navy-700 hover:border-emerald-300 dark:hover:border-cyan-700 bg-gray-50/50 dark:bg-navy-900/50'
                     }`}>
                     {p.id === 'professional' && (
-                      <div className="absolute -top-3 right-6 bg-emerald-500 dark:bg-cyan-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                      <div className="absolute -top-2.5 right-4 bg-emerald-500 dark:bg-cyan-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide">
                         Popular
                       </div>
                     )}
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <div className="font-bold text-xl dark:text-white">{p.name}</div>
-                        <p className="text-base text-gray-600 dark:text-gray-400 mb-4 font-medium">
-                          {p.description}
-                        </p>
-                      </div>
-                      <div className="font-extrabold text-2xl dark:text-white text-right">
-                        ${p.price}
-                        <span className="text-base font-medium text-gray-500">/mo</span>
-                      </div>
+                    <div className="font-bold text-base dark:text-white">{p.name}</div>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-2 line-clamp-2 min-h-[2rem]">
+                      {p.description}
+                    </p>
+                    <div className="font-extrabold text-2xl dark:text-white mb-3">
+                      ${p.price}
+                      <span className="text-sm font-medium text-gray-500">/mo</span>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {p.features.map((feature, idx) => (
-                        <div key={idx} className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300 font-medium">
-                          <CheckCircle2 size={16} className="text-emerald-500 dark:text-cyan-400 flex-shrink-0" />
+                        <div key={idx} className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 font-medium">
+                          <CheckCircle2 size={14} className="text-emerald-500 dark:text-cyan-400 flex-shrink-0" />
                           {feature}
                         </div>
                       ))}
@@ -423,15 +419,15 @@ export function Register() {
                 ))}
               </div>
 
-              <div className="flex gap-3 sm:gap-5">
+              <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="btn-secondary w-1/3 py-3 sm:py-4 text-base sm:text-lg">
+                  className="btn-secondary w-1/3 py-3 text-sm sm:text-base">
                   Back
                 </button>
-                <button type="submit" className="btn-primary w-2/3 py-3 sm:py-4 text-base sm:text-lg">
-                  Continue to Payment <ArrowRight size={20} />
+                <button type="submit" className="btn-primary w-2/3 py-3 text-sm sm:text-base">
+                  Continue to Payment <ArrowRight size={18} />
                 </button>
               </div>
             </motion.form>
