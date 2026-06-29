@@ -135,7 +135,8 @@ export const processPayment = async (
   clientEmail: string,
   packageId: string,
   clientUid: string,
-  clientName: string
+  clientName: string,
+  card?: { brand: string; last4: string; expMonth: number; expYear: number } | null
 ): Promise<PaymentIntent> => {
   try {
     const pkg = getPackageById(packageId);
@@ -171,9 +172,27 @@ export const processPayment = async (
       updatedAt: now,
     };
 
+    // Dashboard-shaped profile so Account/Plan/Payment sections render correctly
+    const [firstName, ...rest] = (clientName || '').split(' ');
+    const renews = new Date();
+    renews.setMonth(renews.getMonth() + 1);
+    const dashboardProfile = {
+      firstName: firstName || '',
+      lastName: rest.join(' ') || '',
+      email: clientEmail,
+      company: '',
+      phone: '',
+      jobTitle: '',
+      plan: pkg.name,
+      packageId,
+      planStatus: 'active',
+      renewsAt: renews.toISOString(),
+      card: card || null,
+    };
+
     // Initialize client data structures
     const initializationData = {
-      profile: clientProfile,
+      profile: { ...dashboardProfile, account: clientProfile },
       analytics: {
         chartData: {},
         revenueData: {},

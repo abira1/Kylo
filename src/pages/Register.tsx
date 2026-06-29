@@ -150,11 +150,21 @@ export function Register() {
       }
 
       // Process payment for the already-created account
+      const digits = paymentData.cardNumber.replace(/\s/g, '');
+      const [expMonth, expYear] = paymentData.expiryDate.split('/');
+      const brand = /^4/.test(digits) ? 'Visa' : /^5[1-5]/.test(digits) ? 'Mastercard' : /^3[47]/.test(digits) ? 'Amex' : /^6/.test(digits) ? 'Discover' : 'Card';
+      const card = {
+        brand,
+        last4: digits.slice(-4),
+        expMonth: parseInt(expMonth, 10) || 1,
+        expYear: 2000 + (parseInt(expYear, 10) || 0),
+      };
       await processPayment(
         formData.email,
         selectedPackage,
         createdUser.uid,
-        formData.fullName
+        formData.fullName,
+        card
       );
 
       // Show success and redirect
