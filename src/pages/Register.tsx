@@ -14,6 +14,7 @@ import {
 import { motion } from 'framer-motion';
 import { registerUser } from '../firebase/auth';
 import { processPayment, PACKAGES, Package } from '../services/paymentService';
+import { CreditCardForm, type CardState, type CardValidity } from '../components/ui/credit-card-form';
 
 export function Register() {
   const navigate = useNavigate();
@@ -38,6 +39,7 @@ export function Register() {
     cvc: '',
     cardName: '',
   });
+  const [cardValid, setCardValid] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -45,9 +47,14 @@ export function Register() {
     setError('');
   };
 
-  const handlePaymentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setPaymentData((prev) => ({ ...prev, [name]: value }));
+  const handleCardChange = (state: CardState, validity: CardValidity) => {
+    setPaymentData({
+      cardNumber: state.number,
+      expiryDate: state.month && state.year ? `${state.month}/${state.year.slice(-2)}` : '',
+      cvc: state.cvv,
+      cardName: state.holder,
+    });
+    setCardValid(validity.allValid);
     setError('');
   };
 
@@ -364,75 +371,20 @@ export function Register() {
 
               {/* Payment Form */}
               <div className="space-y-4 sm:space-y-5">
-                <div>
-                  <label className="label-text">Full Name on Card</label>
-                  <div className="relative">
-                    <User className="absolute left-4 top-3.5 text-gray-400" size={20} />
-                    <input
-                      type="text"
-                      name="cardName"
-                      value={paymentData.cardName}
-                      onChange={handlePaymentChange}
-                      required
-                      className="input-field pl-12"
-                      placeholder="John Doe"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="label-text">Card Number</label>
-                  <div className="relative">
-                    <CreditCard className="absolute left-4 top-3.5 text-gray-400" size={20} />
-                    <input
-                      type="text"
-                      name="cardNumber"
-                      value={paymentData.cardNumber}
-                      onChange={handlePaymentChange}
-                      placeholder="4242 4242 4242 4242"
-                      maxLength="16"
-                      required
-                      className="input-field pl-12 font-mono"
-                    />
-                  </div>
-                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    Use 4242 4242 4242 4242 for testing
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="label-text">Expiry Date</label>
-                    <input
-                      type="text"
-                      name="expiryDate"
-                      value={paymentData.expiryDate}
-                      onChange={handlePaymentChange}
-                      placeholder="MM/YY"
-                      maxLength="5"
-                      required
-                      className="input-field font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="label-text">CVC</label>
-                    <input
-                      type="text"
-                      name="cvc"
-                      value={paymentData.cvc}
-                      onChange={handlePaymentChange}
-                      placeholder="123"
-                      maxLength="4"
-                      required
-                      className="input-field font-mono"
-                    />
-                  </div>
-                </div>
+                <CreditCardForm
+                  showSubmit={false}
+                  maskMiddle
+                  defaultHolder={formData.fullName.toUpperCase()}
+                  onChange={handleCardChange}
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                  Use 4242 4242 4242 4242 for testing
+                </p>
               </div>
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !cardValid}
                 className="btn-primary w-full py-3 sm:py-4 mt-8 text-base sm:text-lg disabled:opacity-50">
                 {loading ? (
                   <>
