@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { User, Shield, Key, Bell, Building, Zap } from 'lucide-react';
+import { User, Shield, Key, Bell, Building, Zap, Settings2 } from 'lucide-react';
 import { CrmIntegrationPanel } from '../../components/CrmIntegrationPanel';
+import { AccountProfile } from '../../components/AccountProfile';
+
 export function Settings() {
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -72,66 +74,7 @@ export function Settings() {
 
         {/* Content Area */}
         <div className="flex-1">
-          {activeTab === 'account' &&
-          <div className="bento-card space-y-8">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-navy-700 pb-6">
-                Profile Information
-              </h2>
-
-              <div className="flex items-center gap-8 mb-8">
-                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-emerald-400 to-turquoise-500 dark:from-cyan-500 dark:to-emerald-500 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
-                  S
-                </div>
-                <div>
-                  <button className="btn-secondary text-sm mb-3">
-                    Change Avatar
-                  </button>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-                    JPG, GIF or PNG. Max size of 800K
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="label-text">First Name</label>
-                  <input
-                  type="text"
-                  className="input-field"
-                  defaultValue="Sarah" />
-                
-                </div>
-                <div>
-                  <label className="label-text">Last Name</label>
-                  <input
-                  type="text"
-                  className="input-field"
-                  defaultValue="Jenkins" />
-                
-                </div>
-                <div className="md:col-span-2">
-                  <label className="label-text">Email Address</label>
-                  <input
-                  type="email"
-                  className="input-field"
-                  defaultValue="sarah@techflow.io" />
-                
-                </div>
-                <div className="md:col-span-2">
-                  <label className="label-text">Company Name</label>
-                  <input
-                  type="text"
-                  className="input-field"
-                  defaultValue="TechFlow Inc." />
-                
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-gray-100 dark:border-navy-800 flex justify-end">
-                <button className="btn-primary">Save Changes</button>
-              </div>
-            </div>
-          }
+          {activeTab === 'account' && <AccountProfile />}
 
           {activeTab === 'api' &&
           <div className="bento-card space-y-6">
@@ -235,5 +178,3 @@ export function Settings() {
     </div>);
 
 }
-// Add missing import for Settings2
-import { Settings2 } from 'lucide-react';

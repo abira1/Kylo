@@ -63,9 +63,7 @@ export interface Invoice {
   createdAt: string;
   plan: string;
   date: string;
-}
-
-export interface TrainingFile {
+}export interface TrainingFile {
   id: string;
   name: string;
   type: string;
@@ -277,8 +275,7 @@ export const createConversation = async (
  * PAYMENTS/INVOICES DATA
  */
 
-export const getInvoices = async (clientId: string): Promise<Invoice[]> => {
-  try {
+export const getInvoices = async (clientId: string): Promise<Invoice[]> => {  try {
     const data = await readData<Record<string, Invoice>>(
       `clients/${clientId}/invoices`
     );
@@ -449,6 +446,63 @@ export const saveKnowledgeDocument = async (
     return docId;
   } catch (error) {
     console.error('Error saving knowledge document:', error);
+    throw error;
+  }
+};
+
+/**
+ * CLIENT PROFILE & SUBSCRIPTION
+ */
+
+export interface ClientProfile {
+  firstName: string;
+  lastName: string;
+  email: string;
+  company: string;
+  phone: string;
+  jobTitle: string;
+  plan: 'Free' | 'Starter' | 'Growth' | 'Enterprise';
+  planStatus: 'active' | 'trialing' | 'past_due' | 'canceled';
+  renewsAt: string;
+  card: {
+    brand: string;
+    last4: string;
+    expMonth: number;
+    expYear: number;
+  } | null;
+}
+
+const DEFAULT_PROFILE: ClientProfile = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  company: '',
+  phone: '',
+  jobTitle: '',
+  plan: 'Starter',
+  planStatus: 'active',
+  renewsAt: '',
+  card: null,
+};
+
+export const getClientProfile = async (clientId: string): Promise<ClientProfile> => {
+  try {
+    const data = await readData<Partial<ClientProfile>>(`clients/${clientId}/profile`);
+    return { ...DEFAULT_PROFILE, ...(data || {}) };
+  } catch (error) {
+    console.error('Error fetching client profile:', error);
+    return DEFAULT_PROFILE;
+  }
+};
+
+export const saveClientProfile = async (
+  clientId: string,
+  profile: Partial<ClientProfile>
+): Promise<void> => {
+  try {
+    await updateData(`clients/${clientId}/profile`, profile);
+  } catch (error) {
+    console.error('Error saving client profile:', error);
     throw error;
   }
 };
